@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { isAddress } from 'ethers';
 import { viewFile } from '../ipfs';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User, FileText, Share2, Shield, Clock,
-  CheckCircle, XCircle, AlertCircle, Search,
-  ChevronRight, Calendar, UserCheck, Key
+  CheckCircle, AlertCircle, Search,
+  UserCheck, Key
 } from 'lucide-react';
-import userLogo from '../imgs/user_logo.png';
 import '../App.css';
 
 export const PatientLogin = ({ contract }) => {
@@ -19,12 +19,33 @@ export const PatientLogin = ({ contract }) => {
 
   const verifyPatient = async (e) => {
     e.preventDefault();
+
+    if (!patientId) {
+      setError('Please enter a Wallet Address');
+      return;
+    }
+
+    // Ethers isAddress can throw on invalid checksums, so we catch it
+    let validAddress = false;
+    try {
+      validAddress = isAddress(patientId);
+    } catch (e) {
+      validAddress = false;
+    }
+
+    if (!validAddress && !patientId.toLowerCase().match(/^0x[a-f0-9]{40}$/)) {
+      setError('Invalid Wallet Address format (must be 0x...)');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      const patient = await contract.patients(patientId);
+      // Normalize address to lowercase to avoid strict checksum errors
+      const sanitizedId = patientId.toLowerCase();
+      const patient = await contract.patients(sanitizedId);
       if (patient.isRegistered) {
-        navigate(`/patient-dashboard/${patientId}`);
+        navigate(`/patient-dashboard/${sanitizedId}`);
       } else {
         setError('Invalid patient ID or not registered');
       }
@@ -126,12 +147,13 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
     const fetchData = async () => {
       try {
         setLoading(true);
+        const sanitizedId = id.toLowerCase();
         // 1. Get Patient Info
-        const patientInfo = await patientContract.getPatient(id);
+        const patientInfo = await patientContract.getPatient(sanitizedId);
         setPatient({
           username: patientInfo[0],
           role: patientInfo[1],
-          address: id
+          address: sanitizedId
         });
 
         // 2. Get Doctors & Access Status
@@ -140,14 +162,14 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
           doctorIds.map(async (doctorId) => {
             const doctor = await doctorContract.getDoctor(doctorId);
             if (doctor[1] === 'admin') return null;
-            const hasAccess = await doctorContract.isAuthorized(doctorId, id);
+            const hasAccess = await doctorContract.isAuthorized(doctorId, sanitizedId);
             return { id: doctorId, name: doctor[0], hasAccess, role: doctor[1] };
           })
         );
         setDoctors(doctorsData.filter(d => d !== null));
 
         // 3. Get Records
-        const allRecords = await patientContract.getActiveRecords(id);
+        const allRecords = await patientContract.getActiveRecords(sanitizedId);
         const recordData = await Promise.all(
           allRecords.map(async (record) => {
             try {
@@ -170,7 +192,7 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
 
         // 4. Get Access Requests
         try {
-          const fetchedRequests = await patientContract.getPatientAccessRequests(id);
+          const fetchedRequests = await patientContract.getPatientAccessRequests(sanitizedId);
           setRequests([...fetchedRequests]);
         } catch (err) {
           console.warn("Could not fetch requests (might need signer):", err);
@@ -191,7 +213,8 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
   const handleGrantAccess = async (doctorId) => {
     try {
       const { doctorContract: signedDoc } = await getSignedContracts();
-      const tx = await signedDoc.addPatientAccess(doctorId, id);
+      const sanitizedId = id.toLowerCase();
+      const tx = await signedDoc.addPatientAccess(doctorId, sanitizedId);
       await tx.wait();
 
       setDoctors(doctors.map(d =>
@@ -206,7 +229,8 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
   const handleRevokeAccess = async (doctorId) => {
     try {
       const { doctorContract: signedDoc } = await getSignedContracts();
-      const tx = await signedDoc.revokePatientAccess(doctorId, id);
+      const sanitizedId = id.toLowerCase();
+      const tx = await signedDoc.revokePatientAccess(doctorId, sanitizedId);
       await tx.wait();
 
       setDoctors(doctors.map(d =>
