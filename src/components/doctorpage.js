@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { uploadFileToIPFS, viewFile } from '../ipfs';
-import userLogo from '../imgs/user_logo.png';
 import '../App.css';
-import { BrowserProvider } from 'ethers';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Activity, Users, FileText, Upload, Search,
+  LogOut, User, Plus, Clock, File, AlertCircle
+} from 'lucide-react';
 
 export const DoctorLogin = ({ contract, account, connectWallet }) => {
   const [error, setError] = useState('');
@@ -11,23 +14,21 @@ export const DoctorLogin = ({ contract, account, connectWallet }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const checkDoctorStatus = async (walletAddress) => {
+      try {
+        const doctor = await contract.doctors(walletAddress);
+        if (doctor.isRegistered) {
+          // Auto-redirect could go here
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     if (account) {
-      // Optional: Auto-check if user is already a doctor to streamline UX
       checkDoctorStatus(account);
     }
-  }, [account]);
-
-  const checkDoctorStatus = async (walletAddress) => {
-    try {
-      const doctor = await contract.doctors(walletAddress);
-      if (doctor.isRegistered) {
-        // We could auto-redirect here, but a button click is often better
-        // navigate(`/doctor-dashboard/${walletAddress}`);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  }
+  }, [account, contract]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -39,11 +40,10 @@ export const DoctorLogin = ({ contract, account, connectWallet }) => {
     setLoading(true);
     try {
       const doctor = await contract.doctors(account);
-
       if (doctor.isRegistered) {
         navigate(`/doctor-dashboard/${account}`);
       } else {
-        setError('Accound not registered as a Doctor.');
+        setError('Account not registered as a Doctor.');
       }
     } catch (err) {
       setError('Error verifying doctor status.');
@@ -54,50 +54,74 @@ export const DoctorLogin = ({ contract, account, connectWallet }) => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-100 via-gray-100 to-gray-100">
-      <div className="glass-panel p-8 rounded-2xl shadow-xl w-full max-w-md space-y-6 transform transition-all hover:scale-[1.01]">
-
-        <div className="flex flex-col items-center">
-          <div className="w-24 h-24 bg-blue-50 rounded-full flex items-center justify-center mb-4 border-4 border-white shadow-sm">
-            <img src={userLogo} alt="Doctor" className="w-16 h-16 opacity-80" />
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-white/20"
+      >
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-center">
+          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border-2 border-white/30">
+            <Activity className="w-10 h-10 text-white" />
           </div>
-          <h1 className='text-3xl font-bold text-gray-800 tracking-tight'>Doctor Portal</h1>
-          <p className="text-gray-500 text-sm mt-1">Secure Blockchain Access</p>
+          <h1 className='text-3xl font-bold text-white tracking-tight'>Doctor Portal</h1>
+          <p className="text-blue-100 mt-2">Secure Blockchain Access</p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-6">
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-700 ml-1">Wallet Address</label>
-            <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl cursor-not-allowed text-gray-500 font-mono text-xs break-all flex items-center justify-center min-h-[3rem]">
-              {account ? account : "No wallet connected"}
+        <div className="p-8">
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700 ml-1">Wallet Address</label>
+              <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 font-mono text-xs break-all flex items-center min-h-[3rem]">
+                {account ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    {account}
+                  </span>
+                ) : (
+                  <span className="text-gray-400">No wallet connected</span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {error && (
-            <div className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center justify-center">
-              {error}
-            </div>
-          )}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="p-3 bg-red-50 text-red-600 text-sm rounded-xl border border-red-100 flex items-center justify-center gap-2"
+              >
+                <AlertCircle className="w-4 h-4" />
+                {error}
+              </motion.div>
+            )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-4 rounded-xl font-semibold text-white shadow-lg transition-all duration-200 transform hover:-translate-y-1 
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full py-4 rounded-xl font-semibold text-white shadow-lg transition-all duration-200 transform hover:-translate-y-0.5
                 ${account
-                ? 'bg-blue-600 hover:bg-blue-700 hover:shadow-blue-200'
-                : 'bg-gray-800 hover:bg-gray-900'
-              }`}
-          >
-            {loading ? 'Verifying...' : (account ? 'Login to Dashboard' : 'Connect Wallet')}
-          </button>
-        </form>
+                  ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                  : 'bg-gray-800 hover:bg-gray-900'
+                }`}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Verifying...
+                </div>
+              ) : (account ? 'Login to Dashboard' : 'Connect Wallet')}
+            </button>
 
-        <button onClick={() => navigate('/')} className="w-full py-3 text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors">
-          ← Back to Home
-        </button>
-
-      </div>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="w-full text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors pt-2"
+            >
+              Back to Home
+            </button>
+          </form>
+        </div>
+      </motion.div>
     </div>
   );
 };
@@ -112,6 +136,7 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -161,6 +186,7 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
     if (!title.trim()) return alert("Please provide a title.");
 
     try {
+      setSubmitting(true);
       const fileCID = await uploadFileToIPFS(file);
       if (!fileCID) throw new Error("Failed to upload file to IPFS.");
 
@@ -177,13 +203,18 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
 
       await tx.wait();
 
-      // Optimistically update or re-fetch
       const patientRecords = await signedDoctorContract.getActiveRecords(selectedPatient.id);
       const doctorRecords = patientRecords.filter(record => record.doctor === id);
 
       setPatients(patients.map(p =>
         p.id === selectedPatient.id ? { ...p, records: doctorRecords } : p
       ));
+
+      // Update the selected patient state as well so UI refreshes immediately
+      setSelectedPatient(prev => ({
+        ...prev,
+        records: doctorRecords
+      }));
 
       setFile(null);
       setTitle('');
@@ -192,6 +223,8 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
     } catch (err) {
       console.error("Error adding record:", err);
       alert('Error adding record: ' + err.message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -199,17 +232,24 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Top Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-10 px-6 py-4 flex justify-between items-center shadow-sm">
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-20 px-6 py-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold">
-            DR
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-blue-600/20">
+            <Activity className="w-6 h-6" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-gray-800">{doctor?.name || "Loading..."}</h1>
-            <p className="text-xs text-gray-500 font-mono">{id?.slice(0, 6)}...{id?.slice(-4)}</p>
+            <div className="flex items-center gap-1.5 text-xs text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded-full w-fit">
+              <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+              {id?.slice(0, 6)}...{id?.slice(-4)}
+            </div>
           </div>
         </div>
-        <button onClick={() => navigate('/')} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 hover:text-red-600 bg-gray-50 hover:bg-red-50 rounded-xl transition-all"
+        >
+          <LogOut className="w-4 h-4" />
           Sign Out
         </button>
       </nav>
@@ -218,37 +258,57 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
 
         {/* Left Sidebar: Patients List */}
         <div className="lg:col-span-4 space-y-4">
-          <h2 className="text-xl font-bold text-gray-800 flex items-center">
-            <span>My Patients</span>
-            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">{patients.length}</span>
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Users className="w-5 h-5 text-gray-500" />
+              My Patients
+            </h2>
+            <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{patients.length}</span>
+          </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[500px]">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] flex flex-col">
             {loading ? (
-              <div className="p-8 text-center text-gray-400">Loading patients...</div>
+              <div className="flex-1 flex items-center justify-center text-gray-400 gap-2">
+                <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-500 rounded-full animate-spin" />
+                Loading...
+              </div>
             ) : patients.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 flex flex-col items-center">
-                <div className="w-12 h-12 bg-gray-100 rounded-full mb-3"></div>
-                <p>No patients detected.</p>
-                <p className="text-xs mt-1">Patients must grant you access first.</p>
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-gray-400">
+                <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                  <Users className="w-8 h-8 text-gray-300" />
+                </div>
+                <p className="font-medium text-gray-600">No patients found</p>
+                <p className="text-sm mt-1">Patients must grant you access first.</p>
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 overflow-y-auto max-h-[calc(100vh-200px)]">
                 {patients.map(patient => (
-                  <div
+                  <motion.div
                     key={patient.id}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     onClick={() => setSelectedPatient(patient)}
-                    className={`p-4 cursor-pointer hover:bg-blue-50 transition-colors duration-200 group ${selectedPatient?.id === patient.id ? 'bg-blue-50 border-l-4 border-blue-600' : 'border-l-4 border-transparent'
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-all duration-200 ${selectedPatient?.id === patient.id ? 'bg-blue-50/50 border-r-4 border-blue-600' : 'border-r-4 border-transparent'
                       }`}
                   >
                     <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className={`font-semibold ${selectedPatient?.id === patient.id ? 'text-blue-900' : 'text-gray-800'}`}>{patient.name}</h3>
-                        <p className="text-xs text-gray-400 font-mono mt-1">{patient.id.slice(0, 8)}...</p>
+                      <div className="flex items-start gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${selectedPatient?.id === patient.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                          {patient.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className={`font-semibold ${selectedPatient?.id === patient.id ? 'text-blue-900' : 'text-gray-800'}`}>
+                            {patient.name}
+                          </h3>
+                          <p className="text-xs text-gray-500 font-mono mt-0.5">{patient.id.slice(0, 6)}...{patient.id.slice(-4)}</p>
+                        </div>
                       </div>
-                      <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded group-hover:bg-white">{patient.records.length} Records</span>
+                      <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
+                        {patient.records.length} Records
+                      </span>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}
@@ -257,101 +317,148 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
 
         {/* Right Content: Patient Details & Add Record */}
         <div className="lg:col-span-8 space-y-6">
-          {selectedPatient ? (
-            <>
-              {/* Add Record Card */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">Add Medical Record for {selectedPatient.name}</h3>
-                <form onSubmit={addRecord} className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Record Title</label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                      placeholder="e.g. Annual Checkup Results"
-                      required
-                    />
+          <AnimatePresence mode="wait">
+            {selectedPatient ? (
+              <motion.div
+                key={selectedPatient.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                {/* Add Record Card */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-blue-50 rounded-lg">
+                      <Upload className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-800">New Medical Record</h3>
+                      <p className="text-sm text-gray-500">Adding for <span className="font-semibold text-blue-600">{selectedPatient.name}</span></p>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                      placeholder="Additional notes..."
-                      rows="2"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Attach File</label>
-                    <input
-                      type="file"
-                      onChange={(e) => setFile(e.target.files[0])}
-                      className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                      required
-                    />
-                  </div>
-
-                  <div className="flex justify-end pt-2">
-                    <button
-                      type="submit"
-                      className="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium shadow-md hover:bg-blue-700 hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-                    >
-                      Upload Record
-                    </button>
-                  </div>
-                </form>
-              </div>
-
-              {/* Past Records List */}
-              <div>
-                <h3 className="text-lg font-bold text-gray-800 mb-4">History</h3>
-                <div className="space-y-3">
-                  {selectedPatient.records.length > 0 ? (
-                    selectedPatient.records.map((record, idx) => (
-                      <div key={idx} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-semibold text-gray-800 text-lg">{record[3]}</h4>
-                            <div className="flex items-center space-x-2 mt-1 text-sm text-gray-500">
-                              <span>{new Date(Number(record.timestamp) * 1000).toLocaleDateString()}</span>
-                              <span>•</span>
-                              <span>{record[2]}</span>
-                            </div>
-                            {record[4] && (
-                              <p className="mt-3 text-gray-600 bg-gray-50 p-3 rounded-lg text-sm">{record[4]}</p>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => viewFile(record[0])}
-                            className="px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium transition-colors"
-                          >
-                            View Document
-                          </button>
+                  <form onSubmit={addRecord} className="grid grid-cols-1 gap-6">
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Record Title</label>
+                        <input
+                          type="text"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                          placeholder="e.g. Lab Results - Jan 2024"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Attach File</label>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            onChange={(e) => setFile(e.target.files[0])}
+                            className="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-200 rounded-xl cursor-pointer"
+                            required
+                          />
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                      <p className="text-gray-500">No records found for this patient.</p>
                     </div>
-                  )}
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                      <textarea
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
+                        placeholder="Add clinical notes, observations, or prescriptions..."
+                        rows="3"
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        disabled={submitting}
+                        className="flex items-center gap-2 px-8 py-3 bg-gray-900 text-white rounded-xl font-medium shadow-lg shadow-gray-900/20 hover:bg-black transition-all hover:scale-[1.02] disabled:opacity-70 disabled:cursor-not-allowed"
+                      >
+                        {submitting ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            Uploading to IPFS...
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4" />
+                            Add Record
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
                 </div>
+
+                {/* Past Records List */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-gray-500" />
+                    Patient History
+                  </h3>
+                  <div className="space-y-4">
+                    {selectedPatient.records.length > 0 ? (
+                      selectedPatient.records.map((record, idx) => (
+                        <div key={idx} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                          <div className="flex justify-between items-start">
+                            <div className="flex gap-4">
+                              <div className="mt-1 p-2 bg-blue-50 rounded-lg h-fit">
+                                <File className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-semibold text-gray-900 text-lg">{record[3]}</h4>
+                                <div className="flex items-center gap-3 mt-1 text-sm text-gray-500">
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-3 h-3" />
+                                    {new Date(Number(record.timestamp || record[5] || Date.now() / 1000) * 1000).toLocaleDateString()}
+                                  </span>
+                                  <span>•</span>
+                                  <span>{record[2]}</span>
+                                </div>
+                                {record[4] && (
+                                  <p className="mt-3 text-gray-600 text-sm leading-relaxed">{record[4]}</p>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => viewFile(record[0])}
+                              className="px-4 py-2 text-sm bg-gray-50 text-gray-700 rounded-lg hover:bg-gray-100 font-medium transition-colors border border-gray-200 flex items-center gap-2"
+                            >
+                              <Search className="w-4 h-4" />
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-12 text-center bg-white rounded-2xl border border-dashed border-gray-200">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <FileText className="w-8 h-8 text-gray-300" />
+                        </div>
+                        <p className="text-gray-500 font-medium">No medical records found</p>
+                        <p className="text-sm text-gray-400 mt-1">Uploaded records will appear here</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center text-gray-400 min-h-[600px]">
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+                  <User className="w-10 h-10 text-blue-200" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Select a Patient</h3>
+                <p className="max-w-xs mx-auto text-gray-500">Choose a patient from the sidebar list to view their medical history or upload new records.</p>
               </div>
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center text-gray-400 min-h-[500px]">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-800">Select a Patient</h3>
-              <p>Choose a patient from the sidebar to view their records or add a new one.</p>
-            </div>
-          )}
+            )}
+          </AnimatePresence>
         </div>
 
       </main>

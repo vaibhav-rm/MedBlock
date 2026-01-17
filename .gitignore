@@ -7,7 +7,7 @@
 
 .env
 
-hardhat-project/
+hardhat-project/node_modules
 
 # testing
 /coverage

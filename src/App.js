@@ -4,13 +4,14 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { Admin, DoctorRegister, PatientRegister } from './components/adminpage';
 import { DoctorLogin, DoctorDashboard } from './components/doctorpage';
 import { PatientLogin, PatientDashboard } from './components/patientpage';
+import { Research } from './components/Research';
 import doctorContractABI from "./ABI/doctorContractABI.json";
 import patientContractABI from "./ABI/patientContractABI.json";
-import userLogo from './imgs/user_logo.png';
+import Navbar from './components/Navbar';
+import LandingPage from './components/LandingPage';
 
-
-const doctorContractAddress = "0xa75d4D4F441b1CfA37B72143c2Fc4BF7BB114cea";
-const patientContractAddress = "0xFcdbC582A859749C9F917fC159C8Cbf6913eaa42";
+const doctorContractAddress = "0x1Db5aE0cD30C9Dc391154Cf9B16C7A1d59691816";
+const patientContractAddress = "0x59743092b54db22Eaf701be48a66067D44042594";
 
 
 const Home = ({ doctorContract, patientContract, account, connectWallet }) => {
@@ -44,48 +45,14 @@ const Home = ({ doctorContract, patientContract, account, connectWallet }) => {
 	};
 
 	return (
-		<div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-			<div className="glass-panel p-8 rounded-2xl max-w-md w-full flex flex-col items-center space-y-8">
-				<div className="text-center">
-					<h1 className='text-4xl font-bold text-gray-800 mb-2'>MedBlock</h1>
-					<p className="text-gray-500">Secure Blockchain Medical Records</p>
+		<>
+			<LandingPage connectAsAdmin={connectAsAdmin} />
+			{error && (
+				<div className="fixed bottom-4 right-4 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 shadow-lg animate-bounce">
+					{error}
 				</div>
-
-				<div className="relative w-32 h-32 bg-blue-100 rounded-full flex items-center justify-center mb-4 overflow-hidden border-4 border-white shadow-lg">
-					<img src={userLogo} alt="Login Illustration" className="w-24 h-24 object-contain opacity-80" />
-				</div>
-
-				<div className="w-full space-y-4">
-					<button onClick={connectAsAdmin} className="w-full px-6 py-4 bg-gray-800 hover:bg-gray-900 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-[1.02] shadow-md flex items-center justify-center">
-						<span>Admin Portal</span>
-					</button>
-
-					<div className="grid grid-cols-2 gap-4">
-						<button onClick={() => navigate('/doctor-login')} className="px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-[1.02] shadow-md">
-							Doctor
-						</button>
-
-						<button onClick={() => navigate('/patient-login')} className="px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-[1.02] shadow-md">
-							Patient
-						</button>
-					</div>
-				</div>
-
-				{error && (
-					<div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg w-full text-center border border-red-100 animate-pulse">
-						{error}
-					</div>
-				)}
-
-				<div className="text-xs text-center text-gray-400 mt-4">
-					{account ? (
-						<span>Connected: {account.slice(0, 6)}...{account.slice(-4)}</span>
-					) : (
-						<span>Wallet not connected</span>
-					)}
-				</div>
-			</div>
-		</div>
+			)}
+		</>
 	);
 };
 
@@ -196,6 +163,7 @@ const App = () => {
 
 	return (
 		<BrowserRouter>
+			<Navbar account={account} />
 			<Routes>
 				<Route path="/" element={
 					<Home
@@ -248,6 +216,8 @@ const App = () => {
 						getSignedContracts={getSignedContracts}
 					/>
 				} />
+
+				<Route path="/research" element={<Research patientContract={patientContract} account={account} connectWallet={connectWallet} />} />
 
 				<Route path="*" element={<Navigate to="/" />} />
 			</Routes>
