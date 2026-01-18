@@ -132,7 +132,7 @@ export const PatientLogin = ({ contract }) => {
 };
 
 
-export const PatientDashboard = ({ doctorContract, patientContract, getSignedContracts }) => {
+export const PatientDashboard = ({ doctorContract, patientContract, getSignedContracts, account }) => {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('records');
 
@@ -144,6 +144,8 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+
+
     const fetchData = async () => {
       try {
         setLoading(true);
@@ -169,26 +171,31 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
         setDoctors(doctorsData.filter(d => d !== null));
 
         // 3. Get Records
-        const allRecords = await patientContract.getActiveRecords(sanitizedId);
-        const recordData = await Promise.all(
-          allRecords.map(async (record) => {
-            try {
-              const doctor = await doctorContract.getDoctor(record[6]);
-              return {
-                recordCDI: record[0],
-                fileName: record[2],
-                title: record[3],
-                description: record[4],
-                datetime: record[5],
-                doctorName: doctor ? doctor[0] : 'Unknown',
-                doctorId: record[6]
-              };
-            } catch (e) {
-              return null;
-            }
-          })
-        );
-        setRecords(recordData.filter(r => r !== null));
+        try {
+          const allRecords = await patientContract.getActiveRecords(sanitizedId);
+          const recordData = await Promise.all(
+            allRecords.map(async (record) => {
+              try {
+                const doctor = await doctorContract.getDoctor(record[6]);
+                return {
+                  recordCDI: record[0],
+                  fileName: record[2],
+                  title: record[3],
+                  description: record[4],
+                  datetime: record[5],
+                  doctorName: doctor ? doctor[0] : 'Unknown',
+                  doctorId: record[6]
+                };
+              } catch (e) {
+                return null;
+              }
+            })
+          );
+          setRecords(recordData.filter(r => r !== null));
+        } catch (recordError) {
+          console.warn("Could not fetch private records (View Only Mode):", recordError.reason || recordError.message);
+          setRecords([]); // Set empty records instead of crashing
+        }
 
         // 4. Get Access Requests
         try {

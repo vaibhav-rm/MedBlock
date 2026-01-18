@@ -4,7 +4,8 @@ import axios from 'axios';
 // 1. Setup IPFS View Gateway (Public)
 // Using a public gateway ensures files can be viewed even if the local node is down
 // Note: Public gateways can be slow. For production, use a dedicated gateway.
-const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
+// Switched to Cloudflare for better reliability and performance
+const IPFS_GATEWAY = "https://cloudflare-ipfs.com/ipfs/";
 
 // 2. Pinata Configuration (For Uploads without a local node)
 // You need to get these keys from https://app.pinata.cloud/keys

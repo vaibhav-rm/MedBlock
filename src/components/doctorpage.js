@@ -164,7 +164,8 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
             const patient = await patientContract.getPatient(patientId);
             // Use getSharedRecords to respect access control
             const patientRecords = await patientContract.getSharedRecords(patientId);
-            const doctorRecords = patientRecords.filter(record => record[6].toLowerCase() === sanitizedId);
+            // Show ALL shared records, not just my own
+            const doctorRecords = patientRecords;
 
             return {
               id: patientId,
@@ -215,16 +216,16 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
       await tx.wait();
 
       const patientRecords = await signedDoctorContract.getSharedRecords(selectedPatient.id);
-      const doctorRecords = patientRecords.filter(record => record.doctor === id);
 
+      // Update with ALL records
       setPatients(patients.map(p =>
-        p.id === selectedPatient.id ? { ...p, records: doctorRecords } : p
+        p.id === selectedPatient.id ? { ...p, records: patientRecords } : p
       ));
 
       // Update the selected patient state as well so UI refreshes immediately
       setSelectedPatient(prev => ({
         ...prev,
-        records: doctorRecords
+        records: patientRecords
       }));
 
       setFile(null);

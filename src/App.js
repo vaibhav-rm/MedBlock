@@ -87,17 +87,24 @@ const App = () => {
 				const provider = new BrowserProvider(window.ethereum);
 				setProvider(provider);
 
-				const doctorContract = new Contract(doctorContractAddress, doctorContractABI.abi, provider);
-				const patientContract = new Contract(patientContractAddress, patientContractABI.abi, provider);
+				// Helper to create contracts with signer if available, else provider
+				const updateContracts = async (signerOrProvider) => {
+					const doctorContract = new Contract(doctorContractAddress, doctorContractABI.abi, signerOrProvider);
+					const patientContract = new Contract(patientContractAddress, patientContractABI.abi, signerOrProvider);
+					setDoctorContract(doctorContract);
+					setPatientContract(patientContract);
+				};
 
-				setDoctorContract(doctorContract);
-				setPatientContract(patientContract);
-
-				// Check if already connected
+				// Initial Load
 				const accounts = await provider.listAccounts();
 				if (accounts.length > 0) {
 					setAccount(accounts[0].address);
-					setSigner(await provider.getSigner());
+					const signer = await provider.getSigner();
+					setSigner(signer);
+					updateContracts(signer);
+				} else {
+					// Fallback to provider if no wallet connected yet (readonly)
+					updateContracts(provider);
 				}
 
 				window.ethereum.on('accountsChanged', async (accounts) => {
@@ -105,8 +112,10 @@ const App = () => {
 					if (accounts[0]) {
 						const newSigner = await provider.getSigner();
 						setSigner(newSigner);
+						updateContracts(newSigner);
 					} else {
 						setSigner(null);
+						updateContracts(provider);
 					}
 				});
 			}
@@ -198,6 +207,7 @@ const App = () => {
 						doctorContract={doctorContract}
 						patientContract={patientContract}
 						getSignedContracts={getSignedContracts}
+						account={account}
 					/>
 				} />
 
@@ -214,6 +224,7 @@ const App = () => {
 						doctorContract={doctorContract}
 						patientContract={patientContract}
 						getSignedContracts={getSignedContracts}
+						account={account}
 					/>
 				} />
 
