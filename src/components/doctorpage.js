@@ -8,40 +8,47 @@ import {
   LogOut, User, Plus, Clock, File, AlertCircle
 } from 'lucide-react';
 
+import { isAddress } from 'ethers';
+
 export const DoctorLogin = ({ contract, account, connectWallet }) => {
+  const [doctorId, setDoctorId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // Optional: Auto-fill if wallet connected
   useEffect(() => {
-    const checkDoctorStatus = async (walletAddress) => {
-      try {
-        const doctor = await contract.doctors(walletAddress);
-        if (doctor.isRegistered) {
-          // Auto-redirect could go here
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }
-
     if (account) {
-      checkDoctorStatus(account);
+      setDoctorId(account);
     }
-  }, [account, contract]);
+  }, [account]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!account) {
-      await connectWallet();
+    if (!doctorId) {
+      setError('Please enter a Wallet Address');
+      return;
+    }
+
+    // Validate address format
+    let validAddress = false;
+    try {
+      validAddress = isAddress(doctorId);
+    } catch (e) { validAddress = false; }
+
+    if (!validAddress && !doctorId.toLowerCase().match(/^0x[a-f0-9]{40}$/)) {
+      setError('Invalid Wallet Address format (must be 0x...)');
       return;
     }
 
     setLoading(true);
+    setError('');
     try {
-      const doctor = await contract.doctors(account);
+      const sanitizedId = doctorId.toLowerCase();
+      const doctor = await contract.doctors(sanitizedId);
+
       if (doctor.isRegistered) {
-        navigate(`/doctor-dashboard/${account}`);
+        navigate(`/doctor-dashboard/${sanitizedId}`);
       } else {
         setError('Account not registered as a Doctor.');
       }
@@ -72,15 +79,17 @@ export const DoctorLogin = ({ contract, account, connectWallet }) => {
           <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700 ml-1">Wallet Address</label>
-              <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-500 font-mono text-xs break-all flex items-center min-h-[3rem]">
-                {account ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    {account}
-                  </span>
-                ) : (
-                  <span className="text-gray-400">No wallet connected</span>
-                )}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <User className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  value={doctorId}
+                  onChange={(e) => setDoctorId(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-mono text-sm"
+                  placeholder="0x..."
+                />
               </div>
             </div>
 
@@ -143,17 +152,19 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
       try {
         setLoading(true);
         // get doctor info 
-        const doctorInfo = await doctorContract.getDoctor(id);
+        const sanitizedId = id.toLowerCase();
+        const doctorInfo = await doctorContract.getDoctor(sanitizedId);
         const name = doctorInfo[0];
-        setDoctor({ name, address: id });
+        setDoctor({ name, address: sanitizedId });
 
-        const authorizedPatients = await doctorContract.getAuthorizedPatients(id);
+        const authorizedPatients = await doctorContract.getAuthorizedPatients(sanitizedId);
 
         const patientsData = await Promise.all(
           authorizedPatients.map(async (patientId) => {
             const patient = await patientContract.getPatient(patientId);
-            const patientRecords = await patientContract.getActiveRecords(patientId);
-            const doctorRecords = patientRecords.filter(record => record[6] === id);
+            // Use getSharedRecords to respect access control
+            const patientRecords = await patientContract.getSharedRecords(patientId);
+            const doctorRecords = patientRecords.filter(record => record[6].toLowerCase() === sanitizedId);
 
             return {
               id: patientId,
@@ -203,7 +214,7 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
 
       await tx.wait();
 
-      const patientRecords = await signedDoctorContract.getActiveRecords(selectedPatient.id);
+      const patientRecords = await signedDoctorContract.getSharedRecords(selectedPatient.id);
       const doctorRecords = patientRecords.filter(record => record.doctor === id);
 
       setPatients(patients.map(p =>
@@ -264,6 +275,39 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
               My Patients
             </h2>
             <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{patients.length}</span>
+            <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">{patients.length}</span>
+          </div>
+
+          {/* Request Access Section */}
+          <div className="bg-white p-4 rounded-xl border border-blue-100 shadow-sm">
+            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <Plus className="w-4 h-4 text-blue-600" /> Request Access
+            </h3>
+            <div className="space-y-3">
+              <input
+                type="text"
+                id="req-patient-addr"
+                placeholder="Patient Address (0x...)"
+                className="w-full p-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button
+                onClick={async () => {
+                  const addr = document.getElementById('req-patient-addr').value;
+                  if (!addr) return alert("Enter address");
+                  try {
+                    const { patientContract: signedPatient } = await getSignedContracts();
+                    const tx = await signedPatient.requestAccess(addr);
+                    await tx.wait();
+                    alert("Access requested! Waiting for patient approval.");
+                  } catch (err) {
+                    alert("Error: " + err.message);
+                  }
+                }}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+              >
+                Send Request
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden min-h-[600px] flex flex-col">

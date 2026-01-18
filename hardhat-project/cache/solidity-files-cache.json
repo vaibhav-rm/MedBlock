@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/doctorcontract.sol": {
-      "lastModificationDate": 1767935658231,
-      "contentHash": "df48211facdf9443f6ef2349613b153b",
+      "lastModificationDate": 1768740513251,
+      "contentHash": "714390ef5b99e908ffd4f78705f1ee7c",
       "sourceName": "contracts/doctorcontract.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -38,8 +38,8 @@
       ]
     },
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/patientcontract.sol": {
-      "lastModificationDate": 1768585744593,
-      "contentHash": "3f946888213aff6a87c1480992b713d8",
+      "lastModificationDate": 1768740619057,
+      "contentHash": "31a6862b406a966de345e8728406162e",
       "sourceName": "contracts/patientcontract.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -70,6 +70,7 @@
         "^0.8.0"
       ],
       "artifacts": [
+        "IDoctorManagement",
         "PatientManagement"
       ]
     }

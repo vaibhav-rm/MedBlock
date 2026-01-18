@@ -37,9 +37,18 @@ contract DoctorManagement {
         emit DoctorRegistered(_doctorAddress, _username, _role);
     }
 
+    address public patientContractAddress;
+
+    function setPatientContractAddress(address _patientContractAddress) external onlyAdmin {
+        patientContractAddress = _patientContractAddress;
+    }
+
     function addPatientAccess(address _doctorAddress, address _patientAddress) external {
         require(doctors[_doctorAddress].isRegistered, "Doctor not registered");
         require(!doctorPatientAccess[_doctorAddress][_patientAddress], "Access already granted");
+        
+        // Security Check: Only the patient OR the trusted PatientContract can grant access
+        require(msg.sender == _patientAddress || msg.sender == patientContractAddress, "Only patient or PatientContract can grant access");
         
         doctorPatients[_doctorAddress].push(_patientAddress);
         doctorPatientAccess[_doctorAddress][_patientAddress] = true;
@@ -50,7 +59,9 @@ contract DoctorManagement {
     function revokePatientAccess(address _doctorAddress, address _patientAddress) external {
         require(doctors[_doctorAddress].isRegistered, "Doctor not registered");
         require(doctorPatientAccess[_doctorAddress][_patientAddress], "Access not granted");
-        require(msg.sender == _patientAddress, "Only patient can revoke access");
+        
+        // Security: Allow Patient OR Trusted PatientContract
+        require(msg.sender == _patientAddress || msg.sender == patientContractAddress, "Only patient or PatientContract can revoke access");
         
         // Remove access
         doctorPatientAccess[_doctorAddress][_patientAddress] = false;

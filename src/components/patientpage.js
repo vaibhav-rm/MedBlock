@@ -212,25 +212,32 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
 
   const handleGrantAccess = async (doctorId) => {
     try {
-      const { doctorContract: signedDoc } = await getSignedContracts();
-      const sanitizedId = id.toLowerCase();
-      const tx = await signedDoc.addPatientAccess(doctorId, sanitizedId);
-      await tx.wait();
+      const { patientContract: signedPatient } = await getSignedContracts();
+
+      // Grant Access in Patient Contract
+      // This will automatically sync with Doctor Contract via internal call
+      const duration = 604800; // 7 days
+      const sanitizedDoctorId = doctorId.toLowerCase();
+      const tx1 = await signedPatient.grantAccess(sanitizedDoctorId, duration);
+      await tx1.wait();
 
       setDoctors(doctors.map(d =>
         d.id === doctorId ? { ...d, hasAccess: true } : d
       ));
       alert("Access granted successfully!");
     } catch (err) {
-      alert('Error granting access: ' + err.message);
+      console.error("Error granting access:", err);
+      const msg = err.reason || err.message;
+      alert('Error granting access: ' + msg);
     }
   };
 
   const handleRevokeAccess = async (doctorId) => {
     try {
-      const { doctorContract: signedDoc } = await getSignedContracts();
-      const sanitizedId = id.toLowerCase();
-      const tx = await signedDoc.revokePatientAccess(doctorId, sanitizedId);
+      const { patientContract: signedPatient } = await getSignedContracts();
+      const sanitizedDoctorId = doctorId.toLowerCase(); // Ensure lowercase
+
+      const tx = await signedPatient.revokeAccess(sanitizedDoctorId);
       await tx.wait();
 
       setDoctors(doctors.map(d =>
@@ -244,11 +251,23 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
 
   const handleApproveRequest = async (reqAddress, duration) => {
     try {
-      const { patientContract: signedPatient } = await getSignedContracts();
-      const tx = await signedPatient.grantAccess(reqAddress, duration);
-      await tx.wait();
+      const { patientContract: signedPatient, doctorContract: signedDoc } = await getSignedContracts();
+
+      // 1. Grant Access in Patient Contract
+      const tx1 = await signedPatient.grantAccess(reqAddress, duration);
+      await tx1.wait();
+
+      // 2. Add to Doctor's List (Sync Visibility)
+      // We look up the doctor's contract to add this patient to their list
+      try {
+        const tx2 = await signedDoc.addPatientAccess(reqAddress, id.toLowerCase());
+        await tx2.wait();
+      } catch (err) {
+        console.warn("Could not add to doctor list (maybe already added):", err);
+      }
+
       setRequests(requests.filter(r => r !== reqAddress));
-      alert("Request approved!");
+      alert("Request approved and Doctor notified!");
     } catch (err) {
       alert("Error approving request: " + err.message);
     }
@@ -256,9 +275,20 @@ export const PatientDashboard = ({ doctorContract, patientContract, getSignedCon
 
   const handleManualGrant = async (address, duration) => {
     try {
-      const { patientContract: signedPatient } = await getSignedContracts();
-      const tx = await signedPatient.grantAccess(address, duration);
-      await tx.wait();
+      const { patientContract: signedPatient, doctorContract: signedDoc } = await getSignedContracts();
+
+      // 1. Grant Access in Patient Contract
+      const tx1 = await signedPatient.grantAccess(address, duration);
+      await tx1.wait();
+
+      // 2. Add to Doctor's List (Sync Visibility)
+      try {
+        const tx2 = await signedDoc.addPatientAccess(address, id.toLowerCase());
+        await tx2.wait();
+      } catch (err) {
+        console.warn("Could not add to doctor list (maybe already added):", err);
+      }
+
       alert("Access granted to " + address);
     } catch (err) {
       alert("Error granting access: " + err.message);

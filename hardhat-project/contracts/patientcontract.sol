@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+    // Interface for DoctorManagement
+    interface IDoctorManagement {
+        function addPatientAccess(address _doctorAddress, address _patientAddress) external;
+        function revokePatientAccess(address _doctorAddress, address _patientAddress) external;
+    }
+
 contract PatientManagement {
     address public admin;
 
@@ -108,6 +114,7 @@ contract PatientManagement {
     // New function to get only active records
     function getActiveRecords(address _patientAddress) public view returns (MedicalRecord[] memory) {
         require(patients[_patientAddress].isRegistered, "Patient not registered");
+        require(msg.sender == _patientAddress, "Access allowed only for patient owner");
         
         // First, count active records
         uint256 activeCount = 0;
@@ -131,12 +138,32 @@ contract PatientManagement {
         return activeRecords;
     }
 
+    // Interface for DoctorManagement
+    // Interface for DoctorManagement (defined globally)
+    
+    address public doctorContractAddress;
+
+    function setDoctorContractAddress(address _doctorContractAddress) external onlyAdmin {
+        doctorContractAddress = _doctorContractAddress;
+    }
+
     function grantAccess(address _viewer, uint256 _durationSeconds) public {
         require(patients[msg.sender].isRegistered, "Sender invalid");
         require(_viewer != address(0), "Invalid viewer address");
         // Grant permission for a specific time
         accessExpiry[msg.sender][_viewer] = block.timestamp + _durationSeconds;
         emit AccessGranted(msg.sender, _viewer, block.timestamp + _durationSeconds);
+
+        // Sync with Doctor Contract
+        if (doctorContractAddress != address(0)) {
+            // We interpret _viewer as the doctor address
+            // Use try/catch in case the call fails (e.g. already exists), so we don't revert the main grant
+            try IDoctorManagement(doctorContractAddress).addPatientAccess(_viewer, msg.sender) {
+                // Success
+            } catch {
+                // Ignore failure (likely access already existed on doctor side)
+            }
+        }
 
         // Remove from pending requests if exists
         address[] storage requests = patientAccessRequests[msg.sender];
@@ -149,10 +176,23 @@ contract PatientManagement {
         }
     }
 
+
+
+    // ... (rest of contract)
+    
     function revokeAccess(address _viewer) public {
         require(patients[msg.sender].isRegistered, "Sender invalid");
         accessExpiry[msg.sender][_viewer] = 0;
         emit AccessRevoked(msg.sender, _viewer);
+
+        // Sync with Doctor Contract
+        if (doctorContractAddress != address(0)) {
+             try IDoctorManagement(doctorContractAddress).revokePatientAccess(_viewer, msg.sender) {
+                 // Success
+             } catch {
+                 // Ignore
+             }
+        }
     }
 
     // Request Access Logic
@@ -193,7 +233,24 @@ contract PatientManagement {
         
         require(isPatient || hasConsent, "Access denied");
         
-        // Return active records
-        return getActiveRecords(_patientAddress);
+        // Return active records (Logic duplicated from getActiveRecords to avoid msg.sender restriction)
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < patientRecords[_patientAddress].length; i++) {
+            if (patientRecords[_patientAddress][i].isActive) {
+                activeCount++;
+            }
+        }
+        
+        MedicalRecord[] memory activeRecords = new MedicalRecord[](activeCount);
+        uint256 currentIndex = 0;
+        
+        for (uint256 i = 0; i < patientRecords[_patientAddress].length; i++) {
+            if (patientRecords[_patientAddress][i].isActive) {
+                activeRecords[currentIndex] = patientRecords[_patientAddress][i];
+                currentIndex++;
+            }
+        }
+        
+        return activeRecords;
     }
 }

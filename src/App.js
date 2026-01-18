@@ -10,8 +10,8 @@ import patientContractABI from "./ABI/patientContractABI.json";
 import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
 
-const doctorContractAddress = "0x1Db5aE0cD30C9Dc391154Cf9B16C7A1d59691816";
-const patientContractAddress = "0x59743092b54db22Eaf701be48a66067D44042594";
+const doctorContractAddress = "0xacbFe360F336A27940e5e785df74627A184bAAbb";
+const patientContractAddress = "0x5EbFfd687770D423a9ebFAb957b16eefcA6f7FE2";
 
 
 const Home = ({ doctorContract, patientContract, account, connectWallet }) => {

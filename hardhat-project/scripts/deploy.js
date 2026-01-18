@@ -17,6 +17,12 @@ async function main() {
     await patientManagement.waitForDeployment();
     const patientAddress = await patientManagement.getAddress();
     console.log("PatientManagement deployed to:", patientAddress);
+
+    // Link Contracts
+    console.log("Linking contracts...");
+    await doctorManagement.setPatientContractAddress(patientAddress);
+    await patientManagement.setDoctorContractAddress(doctorAddress);
+    console.log("Contracts linked successfully.");
 }
 
 main().catch((error) => {
