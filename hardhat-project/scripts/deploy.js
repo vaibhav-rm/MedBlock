@@ -25,6 +25,13 @@ async function main() {
     const researcherAddress = await researcherManagement.getAddress();
     console.log("ResearcherManagement deployed to:", researcherAddress);
 
+    // Deploy HealthcareAudit Contract
+    const HealthcareAudit = await hre.ethers.getContractFactory("HealthcareAudit");
+    const healthcareAudit = await HealthcareAudit.deploy();
+    await healthcareAudit.waitForDeployment();
+    const auditAddress = await healthcareAudit.getAddress();
+    console.log("HealthcareAudit deployed to:", auditAddress);
+
     // Deploy PatientManagement Contract
     const PatientManagement = await hre.ethers.getContractFactory("PatientManagement");
     const patientManagement = await PatientManagement.deploy();
@@ -41,6 +48,7 @@ async function main() {
     await patientManagement.setDoctorContractAddress(doctorAddress);
     await patientManagement.setInsuranceContractAddress(insuranceAddress);
     await patientManagement.setResearcherContractAddress(researcherAddress);
+    await patientManagement.setAuditContractAddress(auditAddress);
     console.log("Contracts linked successfully.");
 }
 

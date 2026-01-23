@@ -2,9 +2,16 @@
 
 This document outlines the architecture, user flows, and data interaction models for the MedBloc.
 
-## 1. System Architecture
+## 1. System Architecture & Tech Stack
 
 The application follows a Decentralized Application (dApp) architecture, leveraging Ethereum for access control and IPFS for secure, distributed storage of medical records.
+
+### Technology Stack
+*   **Smart Contracts**: Solidity (v0.8+)
+*   **Blockchain Network**: Ethereum Sepolia Testnet
+*   **Storage**: IPFS (InterPlanetary File System)
+*   **Frontend**: React.js, Ethers.js v6, Tailwind CSS
+*   **Development**: Hardhat, Docker
 
 ```mermaid
 graph TD
@@ -108,9 +115,20 @@ stateDiagram-v2
 
 ---
 
-## 3. Data Flow & Security Model
+## 3. Methodology & Security Model
 
-### 3.1 Data Privacy Model
+The system enforces strict security through cryptographic verification and decentralized consensus.
+
+### 3.1 Role-Based Access Control (RBAC) Methodology
+The system strictly separates concerns into variable contracts:
+1.  **PatientManagement**: The "Core" that holds data ownership.
+2.  **DoctorManagement**: Verified Doctor Registry.
+3.  **ResearcherManagement / InsuranceManagement**: Specialized stakeholders.
+4.  **HealthcareAudit**: Immutable logging.
+
+**Rule:** `msg.sender` must always match the authorized entity. There are no "admin backdoors" to view private data.
+
+### 3.2 Data Privacy Flow
 *   **Public Data**: Wallet addresses, Registration status.
 *   **Protected Data**: IPFS CIDs (Links to files).
 *   **Access Logic**:
@@ -130,6 +148,13 @@ graph LR
     end
 ```
 
+### 3.3 Audit Methodology
+Every critical state change emits an event and calls the `HealthcareAudit` contract.
+*   **Transparency**: Patients can see exactly when a Doctor or Insurer accessed their files.
+*   **Non-Repudiation**: Blockchain transactions cannot be deleted or altered.
+
+---
+
 ## 4. Component Interaction Map
 
 Map of React components to their primary responsibilities.
@@ -141,5 +166,6 @@ Map of React components to their primary responsibilities.
 | `LandingPage.js` | Role Selection, Product Features |
 | `patientpage.js` | **Patient Dashboard**: View Records, Manage Access Requests |
 | `doctorpage.js` | **Doctor Dashboard**: View Patients, Upload Records |
-| `Research.js` | **Researcher Portal**: View specific patient records (Read-Only) |
+| `researcherpage.js` | **Researcher Portal**: View specific patient records (Read-Only) |
+| `insurancepage.js` | **Insurance Portal**: View claims-related records (Read-Only) |
 | `adminpage.js` | **Admin Only**: Register new Patients/Doctors |

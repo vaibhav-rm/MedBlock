@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserProvider, Contract } from 'ethers';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Admin, DoctorRegister, PatientRegister, InsuranceRegister, ResearcherRegister } from './components/adminpage';
+import { Admin, DoctorRegister, PatientRegister, InsuranceRegister, ResearcherRegister, AuditDashboard } from './components/adminpage';
 import { DoctorLogin, DoctorDashboard } from './components/doctorpage';
 import { PatientLogin, PatientDashboard } from './components/patientpage';
 import { InsuranceLogin, InsuranceDashboard } from './components/insurancepage';
@@ -11,20 +11,23 @@ import doctorContractABI from "./ABI/doctorContractABI.json";
 import patientContractABI from "./ABI/patientContractABI.json";
 import insuranceContractABI from "./ABI/insuranceContractABI.json";
 import researcherContractABI from "./ABI/researcherContractABI.json";
+import auditContractABI from "./ABI/auditContractABI.json";
 import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
 
 // UPDATED ADDRESSES
-const doctorContractAddress = "0x8fF3602a77A03eC9Cfb746B30A1342BFD5B623C0";
-const insuranceContractAddress = "0xa110A226F160B1C153F972ba1c0949D74a7899F7";
-const researcherContractAddress = "0x8f8D6f88E57edD7E9eF6aA6014d0330491670c0D";
-const patientContractAddress = "0x0b439F373A5DA216DA73982ab8E537bB5c564496";
+const doctorContractAddress = "0x90E18de98C49344F944e80b292D95b63Ff1a4e52";
+const insuranceContractAddress = "0xdb72DCE4ad67B6f2B57560A41ABaD10a70D92F41";
+const researcherContractAddress = "0x99cC50B32E63827F328ffAD7A8fA8D9201952a07";
+const patientContractAddress = "0x00b3697BF61C1066D0Bb664F04D899B28B79B8D8";
+const auditContractAddress = "0x119590cd8620020FD2409862B3C80C5E12c54Ae5";
 
 function App() {
 	const [doctorContract, setDoctorContract] = useState(null);
 	const [patientContract, setPatientContract] = useState(null);
 	const [insuranceContract, setInsuranceContract] = useState(null);
 	const [researcherContract, setResearcherContract] = useState(null);
+	const [auditContract, setAuditContract] = useState(null);
 	const [account, setAccount] = useState(null);
 
 	const connectWallet = async () => {
@@ -46,16 +49,18 @@ function App() {
 		const provider = new BrowserProvider(window.ethereum);
 		const signer = await provider.getSigner();
 
-		const signedDoctorContract = new Contract(doctorContractAddress, doctorContractABI, signer);
-		const signedPatientContract = new Contract(patientContractAddress, patientContractABI, signer);
-		const signedInsuranceContract = new Contract(insuranceContractAddress, insuranceContractABI, signer);
-		const signedResearcherContract = new Contract(researcherContractAddress, researcherContractABI, signer);
+		const signedDoctorContract = new Contract(doctorContractAddress, doctorContractABI.abi, signer);
+		const signedPatientContract = new Contract(patientContractAddress, patientContractABI.abi, signer);
+		const signedInsuranceContract = new Contract(insuranceContractAddress, insuranceContractABI.abi, signer);
+		const signedResearcherContract = new Contract(researcherContractAddress, researcherContractABI.abi, signer);
+		const signedAuditContract = new Contract(auditContractAddress, auditContractABI.abi, signer);
 
 		return {
 			doctorContract: signedDoctorContract,
 			patientContract: signedPatientContract,
 			insuranceContract: signedInsuranceContract,
-			researcherContract: signedResearcherContract
+			researcherContract: signedResearcherContract,
+			auditContract: signedAuditContract
 		};
 	};
 
@@ -64,15 +69,17 @@ function App() {
 			try {
 				const provider = new BrowserProvider(window.ethereum);
 
-				const docContract = new Contract(doctorContractAddress, doctorContractABI, provider);
-				const patContract = new Contract(patientContractAddress, patientContractABI, provider);
-				const insContract = new Contract(insuranceContractAddress, insuranceContractABI, provider);
-				const resContract = new Contract(researcherContractAddress, researcherContractABI, provider);
+				const docContract = new Contract(doctorContractAddress, doctorContractABI.abi, provider);
+				const patContract = new Contract(patientContractAddress, patientContractABI.abi, provider);
+				const insContract = new Contract(insuranceContractAddress, insuranceContractABI.abi, provider);
+				const resContract = new Contract(researcherContractAddress, researcherContractABI.abi, provider);
+				const audContract = new Contract(auditContractAddress, auditContractABI.abi, provider);
 
 				setDoctorContract(docContract);
 				setPatientContract(patContract);
 				setInsuranceContract(insContract);
 				setResearcherContract(resContract);
+				setAuditContract(audContract);
 
 				// Check if wallet is already connected
 				const accounts = await window.ethereum.request({ method: 'eth_accounts' });
@@ -107,6 +114,7 @@ function App() {
 				<Route path="/register-patient" element={<PatientRegister getSignedContracts={getSignedContracts} />} />
 				<Route path="/register-insurance" element={<InsuranceRegister getSignedContracts={getSignedContracts} />} />
 				<Route path="/register-researcher" element={<ResearcherRegister getSignedContracts={getSignedContracts} />} />
+				<Route path="/admin/audits" element={<AuditDashboard auditContract={auditContract} />} />
 
 				{/* Doctor Routes */}
 				<Route path="/doctor-login" element={<DoctorLogin contract={doctorContract} account={account} connectWallet={connectWallet} />} />
@@ -119,13 +127,14 @@ function App() {
 				} />
 
 				{/* Patient Routes */}
-				<Route path="/patient-login" element={<PatientLogin contract={patientContract} />} />
+				<Route path="/patient-login" element={<PatientLogin contract={patientContract} account={account} />} />
 				<Route path="/patient-dashboard/:id" element={
 					<PatientDashboard
 						doctorContract={doctorContract}
 						patientContract={patientContract}
 						insuranceContract={insuranceContract}
 						researcherContract={researcherContract}
+						auditContract={auditContract}
 						getSignedContracts={getSignedContracts}
 						account={account}
 					/>

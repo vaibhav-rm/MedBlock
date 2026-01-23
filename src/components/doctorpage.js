@@ -93,6 +93,16 @@ export const DoctorLogin = ({ contract, account, connectWallet }) => {
               </div>
             </div>
 
+            {account && doctorId && account.toLowerCase() !== doctorId.toLowerCase() && (
+              <div className="p-3 bg-yellow-50 text-yellow-700 text-sm rounded-xl border border-yellow-200 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Wallet Mismatch:</span> You are connected as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{account.slice(0, 6)}...</span> but trying to login as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{doctorId.slice(0, 6)}...</span>.
+                  <div className="mt-1 text-xs opacity-90">Transactions will fail. Please switch accounts in MetaMask.</div>
+                </div>
+              </div>
+            )}
+
             {error && (
               <motion.div
                 initial={{ opacity: 0 }}
@@ -160,19 +170,26 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
 
         const authorizedPatients = await doctorContract.getAuthorizedPatients(sanitizedId);
 
+        const { patientContract: signedPatientContract } = await getSignedContracts();
+
         const patientsData = await Promise.all(
           authorizedPatients.map(async (patientId) => {
-            const patient = await patientContract.getPatient(patientId);
-            // Use getSharedRecords to respect access control
-            const patientRecords = await patientContract.getSharedRecords(patientId);
-            // Show ALL shared records, not just my own
-            const doctorRecords = patientRecords;
+            try {
+              const patient = await patientContract.getPatient(patientId);
+              // Use signed contract for getSharedRecords to ensure msg.sender is correct
+              const patientRecords = await signedPatientContract.getSharedRecords(patientId);
+              // Show ALL shared records, not just my own
+              const doctorRecords = patientRecords;
 
-            return {
-              id: patientId,
-              name: patient[0],
-              records: doctorRecords
-            };
+              return {
+                id: patientId,
+                name: patient[0],
+                records: doctorRecords
+              };
+            } catch (innerErr) {
+              console.warn(`Failed to fetch data for patient ${patientId}`, innerErr);
+              return null;
+            }
           })
         );
 

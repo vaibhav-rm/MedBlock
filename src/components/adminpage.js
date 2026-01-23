@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import registerLogo from '../imgs/register_logo.png';
-
+import { Clock, Shield, AlertCircle, FileText, UserCheck } from 'lucide-react';
 
 export const DoctorRegister = ({ getSignedContracts }) => {
   const [doctorId, setDoctorId] = useState('');
@@ -244,6 +244,103 @@ export const ResearcherRegister = ({ getSignedContracts }) => {
   );
 };
 
+export const AuditDashboard = ({ auditContract }) => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchAudits = async () => {
+      try {
+        if (!auditContract) return;
+        const allLogs = await auditContract.getAuditTrail();
+        const formattedLogs = allLogs.map(l => ({
+          actor: l[0],
+          actionType: l[1],
+          subject: l[2],
+          details: l[3],
+          timestamp: l[4]
+        }));
+        formattedLogs.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+        setLogs(formattedLogs);
+      } catch (err) {
+        console.error("Error fetching audits:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAudits();
+  }, [auditContract]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 pt-20 px-4 sm:px-6 lg:px-8 pb-12">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <Shield className="w-8 h-8 text-blue-600" /> System Audit Trail
+          </h1>
+          <button
+            onClick={() => navigate('/admin')}
+            className="px-4 py-2 text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 font-medium"
+          >
+            Back to Dashboard
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-4 text-gray-500">Loading audit logs...</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {logs.length === 0 ? (
+              <div className="p-12 text-center text-gray-500">
+                <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No audit logs recorded yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="p-4 font-semibold text-gray-600">Action Type</th>
+                      <th className="p-4 font-semibold text-gray-600">Actor (Initiator)</th>
+                      <th className="p-4 font-semibold text-gray-600">Subject (Target)</th>
+                      <th className="p-4 font-semibold text-gray-600">Details</th>
+                      <th className="p-4 font-semibold text-gray-600">Timestamp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {logs.map((log, i) => (
+                      <tr key={i} className="hover:bg-gray-50 transition-colors">
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${log.actionType.includes('GRANT') || log.actionType.includes('REGISTER') ? 'bg-green-100 text-green-700' :
+                              log.actionType.includes('REVOKE') ? 'bg-red-100 text-red-700' :
+                                'bg-blue-100 text-blue-700'
+                            }`}>
+                            {log.actionType.replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="p-4 font-mono text-xs text-gray-500">{log.actor}</td>
+                        <td className="p-4 font-mono text-xs text-gray-500">{log.subject}</td>
+                        <td className="p-4 text-gray-700 max-w-xs truncate" title={log.details}>{log.details}</td>
+                        <td className="p-4 text-gray-500">
+                          {new Date(Number(log.timestamp) * 1000).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export const Admin = () => {
   const navigate = useNavigate();
 
@@ -281,10 +378,10 @@ export const Admin = () => {
         </button>
 
         <button
-          className="w-full px-6 py-3 bg-gray-400 text-white rounded cursor-not-allowed"
-          disabled
+          onClick={() => navigate('/admin/audits')}
+          className="w-full px-6 py-3 bg-teal-600 text-white rounded hover:bg-teal-700 transition flex items-center justify-center gap-2"
         >
-          View Audits
+          <Clock className='w-5 h-5' /> View System Audits
         </button>
       </div>
 

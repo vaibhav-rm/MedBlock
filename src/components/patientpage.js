@@ -10,12 +10,19 @@ import {
 } from 'lucide-react';
 import '../App.css';
 
-export const PatientLogin = ({ contract }) => {
+export const PatientLogin = ({ contract, account }) => {
   const [patientId, setPatientId] = useState('');
   const [patientUsername, setPatientUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  // Auto-fill if wallet connected
+  useEffect(() => {
+    if (account) {
+      setPatientId(account);
+    }
+  }, [account]);
 
   const verifyPatient = async (e) => {
     e.preventDefault();
@@ -41,15 +48,21 @@ export const PatientLogin = ({ contract }) => {
     setError('');
     try {
       const sanitizedId = patientId.toLowerCase();
-      const patient = await contract.patients(sanitizedId);
-      if (patient.isRegistered) {
-        navigate(`/patient-dashboard/${sanitizedId}`);
-      } else {
-        setError('Invalid patient ID or not registered');
-      }
+      // Use getPatient to verify. If invalid, it reverts
+      const patient = await contract.getPatient(sanitizedId);
+
+      // If no revert, we proceed (assuming contract logic is consistent)
+      // Earlier we checked patient.isRegistered but getPatient returns (username, role)
+      // If it returns successfully, patient is registered.
+      navigate(`/patient-dashboard/${sanitizedId}`);
+
     } catch (err) {
       console.error(err);
-      setError('Error verifying patient. Please check your connection.');
+      if (err.message.includes("Patient not registered")) {
+        setError('Invalid patient ID or not registered');
+      } else {
+        setError('Error verifying patient. Please check your connection.');
+      }
     } finally {
       setLoading(false);
     }
@@ -100,6 +113,16 @@ export const PatientLogin = ({ contract }) => {
               </div>
             </div>
 
+            {account && patientId && account.toLowerCase() !== patientId.toLowerCase() && (
+              <div className="p-3 bg-yellow-50 text-yellow-700 text-sm rounded-xl border border-yellow-200 flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Wallet Mismatch:</span> You are connected as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{account.slice(0, 6)}...</span> but trying to login as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{patientId.slice(0, 6)}...</span>.
+                  <div className="mt-1 text-xs opacity-90">Transactions will fail. Please switch accounts in MetaMask.</div>
+                </div>
+              </div>
+            )}
+
             {error && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -130,7 +153,7 @@ export const PatientLogin = ({ contract }) => {
 };
 
 
-export const PatientDashboard = ({ doctorContract, patientContract, insuranceContract, researcherContract, getSignedContracts, account }) => {
+export const PatientDashboard = ({ doctorContract, patientContract, insuranceContract, researcherContract, auditContract, getSignedContracts, account }) => {
   const { id } = useParams();
   const [activeTab, setActiveTab] = useState('records');
 
@@ -139,6 +162,7 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
   const [insurers, setInsurers] = useState([]);
   const [researchers, setResearchers] = useState([]);
   const [records, setRecords] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]); // Audit State
   const [patient, setPatient] = useState(null);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -202,7 +226,8 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
 
         // 5. Get Records
         try {
-          const allRecords = await patientContract.getActiveRecords(sanitizedId);
+          const { patientContract: signedPatient } = await getSignedContracts();
+          const allRecords = await signedPatient.getActiveRecords(sanitizedId);
           const recordData = await Promise.all(
             allRecords.map(async (record) => {
               try {
@@ -233,15 +258,36 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
           );
           setRecords(recordData.filter(r => r !== null));
         } catch (recordError) {
+          console.warn("Records fetch failed", recordError);
           setRecords([]);
         }
 
         // 6. Get Access Requests
         try {
-          const fetchedRequests = await patientContract.getPatientAccessRequests(sanitizedId);
+          const { patientContract: signedPatient } = await getSignedContracts();
+          const fetchedRequests = await signedPatient.getPatientAccessRequests(sanitizedId);
           setRequests([...fetchedRequests]);
         } catch (err) {
-          // ignore
+          console.warn("Requests fetch failed", err);
+        }
+
+        // 7. Get Audit Logs
+        if (auditContract) {
+          try {
+            // We fetch logs where patient is subject
+            const logs = await auditContract.getAuditTrailBySubject(sanitizedId);
+            // Logs is array of structs/tuples
+            const formattedLogs = logs.map(l => ({
+              actor: l[0],
+              actionType: l[1], // e.g. "ACCESS_GRANTED"
+              subject: l[2],
+              details: l[3],
+              timestamp: l[4]
+            }));
+            // Sort by timestamp desc
+            formattedLogs.sort((a, b) => Number(b.timestamp) - Number(a.timestamp));
+            setAuditLogs(formattedLogs);
+          } catch (e) { console.warn("Audit fetch failed", e); }
         }
 
       } catch (err) {
@@ -254,19 +300,24 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
     if (doctorContract && patientContract && id) {
       fetchData();
     }
-  }, [doctorContract, patientContract, insuranceContract, researcherContract, id]);
+  }, [doctorContract, patientContract, insuranceContract, researcherContract, auditContract, id]);
+
+  // Access Duration Constants (Seconds)
+  const DOCTOR_ACCESS_TIME = 30 * 24 * 60 * 60; // 30 Days
+  const RESEARCHER_ACCESS_TIME = 7 * 24 * 60 * 60; // 7 Days
+  const INSURANCE_ACCESS_TIME = 24 * 60 * 60; // 24 Hours
 
   const handleGrantAccess = async (doctorId) => {
     try {
       const sanitizedDoctorId = doctorId.toLowerCase();
       const { patientContract: signedPatient } = await getSignedContracts();
-      const tx = await signedPatient.grantAccess(sanitizedDoctorId, 604800);
+      const tx = await signedPatient.grantAccess(sanitizedDoctorId, DOCTOR_ACCESS_TIME);
       await tx.wait();
 
       setDoctors(doctors.map(d =>
         d.id === doctorId ? { ...d, hasAccess: true } : d
       ));
-      alert(`Access granted successfully!`);
+      alert(`Access granted successfully for 30 days!`);
     } catch (err) {
       alert('Error granting access: ' + (err.reason || err.message));
     }
@@ -291,10 +342,10 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
     try {
       const sanitizedId = insurerId.toLowerCase();
       const { patientContract: signedPatient } = await getSignedContracts();
-      const tx = await signedPatient.grantAccess(sanitizedId, 604800);
+      const tx = await signedPatient.grantAccess(sanitizedId, INSURANCE_ACCESS_TIME);
       await tx.wait();
       setInsurers(insurers.map(i => i.id === insurerId ? { ...i, hasAccess: true } : i));
-      alert(`Access granted to Insurer!`);
+      alert(`Access granted to Insurer for 24 hours!`);
     } catch (err) {
       alert("Error granting access: " + (err.reason || err.message));
     }
@@ -317,10 +368,10 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
     try {
       const sanitizedId = resId.toLowerCase();
       const { patientContract: signedPatient } = await getSignedContracts();
-      const tx = await signedPatient.grantAccess(sanitizedId, 604800);
+      const tx = await signedPatient.grantAccess(sanitizedId, RESEARCHER_ACCESS_TIME);
       await tx.wait();
       setResearchers(researchers.map(r => r.id === resId ? { ...r, hasAccess: true } : r));
-      alert(`Access granted to Researcher!`);
+      alert(`Access granted to Researcher for 7 days!`);
     } catch (err) {
       alert("Error granting access: " + (err.reason || err.message));
     }
@@ -402,6 +453,13 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
             </div>
             {activeTab === 'access' && <motion.div layoutId="underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600" />}
           </button>
+
+          <button onClick={() => setActiveTab('audit')} className={`pb-4 px-4 font-medium transition-all relative ${activeTab === 'audit' ? 'text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}>
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5" /> Audit Trail
+            </div>
+            {activeTab === 'audit' && <motion.div layoutId="underline" className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600" />}
+          </button>
         </div>
 
         {/* Content Area */}
@@ -426,7 +484,7 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
                             {new Date(Number(record.datetime) * 1000).toLocaleDateString()}
                           </span>
                           <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${record.privacyLevel == 0 ? 'bg-green-100 text-green-700' :
-                              record.privacyLevel == 1 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
+                            record.privacyLevel == 1 ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'
                             }`}>
                             {record.privacyLevel == 0 ? 'Research' : record.privacyLevel == 1 ? 'Standard' : 'Private'}
                           </span>
@@ -445,7 +503,7 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
                 </div>
               )}
             </motion.div>
-          ) : (
+          ) : activeTab === 'access' ? (
             <motion.div key="access" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-8">
 
               {/* Requests */}
@@ -531,9 +589,45 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
               </div>
 
             </motion.div>
+          ) : (
+            <motion.div key="audit" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-6">
+              {auditLogs.length === 0 ? (
+                <div className="p-8 text-center bg-white rounded-2xl text-gray-500">No audit logs found.</div>
+              ) : (
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr>
+                        <th className="p-4 font-semibold text-gray-600">Action</th>
+                        <th className="p-4 font-semibold text-gray-600">Actor (Who)</th>
+                        <th className="p-4 font-semibold text-gray-600">Details</th>
+                        <th className="p-4 font-semibold text-gray-600">When</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {auditLogs.map((log, i) => (
+                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-4 font-bold text-gray-800">
+                            <span className={`px-2 py-1 rounded text-xs ${log.actionType === 'ACCESS_GRANTED' ? 'bg-green-100 text-green-800' :
+                              log.actionType === 'ACCESS_REVOKED' ? 'bg-red-100 text-red-800' :
+                                log.actionType === 'RECORD_ADDED' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                              }`}>
+                              {log.actionType.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="p-4 font-mono text-gray-500 text-xs">{log.actor}</td>
+                          <td className="p-4 text-gray-600">{log.details}</td>
+                          <td className="p-4 text-gray-500">{new Date(Number(log.timestamp) * 1000).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </div >
   );
 };

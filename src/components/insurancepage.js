@@ -32,17 +32,22 @@ export const InsuranceLogin = ({ contract, account, connectWallet }) => {
         setError('');
         try {
             const sanitizedId = insurerId.toLowerCase();
-            // Check if registered
-            const insurer = await contract.insurers(sanitizedId);
+            // Use getInsurer to verify status and registration.
+            const insurer = await contract.getInsurer(sanitizedId);
 
-            if (insurer.isRegistered) {
+            // getInsurer returns (username, role, isRegistered)
+            if (insurer[2] === true || insurer.isRegistered) {
                 navigate(`/insurance-dashboard/${sanitizedId}`);
             } else {
                 setError('Account not registered as an Insurer.');
             }
         } catch (err) {
-            setError('Error verifying insurer status.');
             console.error(err);
+            if (err.message && (err.message.includes("Insurer not registered") || err.reason === "Insurer not registered")) {
+                setError('Account not registered as an Insurer.');
+            } else {
+                setError('Error verifying insurer status. Check connection.');
+            }
         } finally {
             setLoading(false);
         }
@@ -80,6 +85,16 @@ export const InsuranceLogin = ({ contract, account, connectWallet }) => {
                                 />
                             </div>
                         </div>
+
+                        {account && insurerId && account.toLowerCase() !== insurerId.toLowerCase() && (
+                            <div className="p-3 bg-yellow-50 text-yellow-700 text-sm rounded-xl border border-yellow-200 flex items-start gap-2">
+                                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-bold">Wallet Mismatch:</span> You are connected as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{account.slice(0, 6)}...</span> but trying to login as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{insurerId.slice(0, 6)}...</span>.
+                                    <div className="mt-1 text-xs opacity-90">Transactions will fail. Please switch accounts in MetaMask.</div>
+                                </div>
+                            </div>
+                        )}
 
                         {error && (
                             <motion.div
@@ -143,16 +158,28 @@ export const InsuranceDashboard = ({ insuranceContract, patientContract, getSign
 
                 const authorizedPatients = await insuranceContract.getAuthorizedPatients(sanitizedId);
 
+                const { patientContract: signedPatientContract } = await getSignedContracts();
+
                 const patientsData = await Promise.all(
                     authorizedPatients.map(async (patientId) => {
                         const patient = await patientContract.getPatient(patientId);
-                        const patientRecords = await patientContract.getSharedRecords(patientId);
+                        try {
+                            // Use signed contract to ensure msg.sender is correct
+                            const patientRecords = await signedPatientContract.getSharedRecords(patientId);
 
-                        return {
-                            id: patientId,
-                            name: patient[0],
-                            records: patientRecords
-                        };
+                            return {
+                                id: patientId,
+                                name: patient[0],
+                                records: patientRecords
+                            };
+                        } catch (err) {
+                            console.warn("Error fetching records for patient:", patientId, err);
+                            return {
+                                id: patientId,
+                                name: patient[0],
+                                records: []
+                            };
+                        }
                     })
                 );
 

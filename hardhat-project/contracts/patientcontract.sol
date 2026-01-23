@@ -22,6 +22,10 @@ pragma solidity ^0.8.0;
         function getResearcher(address _researcherAddress) external view returns (string memory, string memory, bool);
     }
 
+    interface IHealthcareAudit {
+        function addAuditLog(address _actor, string memory _actionType, address _subject, string memory _details) external;
+    }
+
 contract PatientManagement {
     address public admin;
 
@@ -72,6 +76,10 @@ contract PatientManagement {
         require(!patients[_patientAddress].isRegistered, "Patient already registered");
         patients[_patientAddress] = Patient(_username, _role, true);
         emit PatientRegistered(_patientAddress, _username, _role);
+        
+        if (auditContractAddress != address(0)) {
+            try IHealthcareAudit(auditContractAddress).addAuditLog(msg.sender, "PATIENT_REGISTERED", _patientAddress, _username) {} catch {}
+        }
     }
 
     function getPatient(address _patientAddress) public view returns (string memory username, string memory role) {
@@ -120,6 +128,10 @@ contract PatientManagement {
         recordIndexes[_ipfsHash] = patientRecords[_patientAddress].length - 1;
         
         emit MedicalRecordAdded(_patientAddress, msg.sender, _ipfsHash, block.timestamp, _privacyLevel);
+
+        if (auditContractAddress != address(0)) {
+            try IHealthcareAudit(auditContractAddress).addAuditLog(msg.sender, "RECORD_ADDED", _patientAddress, _ipfsHash) {} catch {}
+        }
     }
 
     function getMedicalRecords(address _patientAddress) public view returns (MedicalRecord[] memory) {
@@ -156,6 +168,7 @@ contract PatientManagement {
     address public doctorContractAddress;
     address public insuranceContractAddress;
     address public researcherContractAddress;
+    address public auditContractAddress;
 
     function setDoctorContractAddress(address _doctorContractAddress) external onlyAdmin {
         doctorContractAddress = _doctorContractAddress;
@@ -167,6 +180,10 @@ contract PatientManagement {
 
     function setResearcherContractAddress(address _researcherContractAddress) external onlyAdmin {
         researcherContractAddress = _researcherContractAddress;
+    }
+
+    function setAuditContractAddress(address _auditContractAddress) external onlyAdmin {
+        auditContractAddress = _auditContractAddress;
     }
 
     function grantAccess(address _viewer, uint256 _durationSeconds) public {
@@ -200,6 +217,10 @@ contract PatientManagement {
                 break;
             }
         }
+
+        if (auditContractAddress != address(0)) {
+            try IHealthcareAudit(auditContractAddress).addAuditLog(msg.sender, "ACCESS_GRANTED", _viewer, "7 Days Access") {} catch {}
+        }
     }
     
     function revokeAccess(address _viewer) public {
@@ -215,6 +236,10 @@ contract PatientManagement {
         }
         if (researcherContractAddress != address(0)) {
              try IResearcherManagement(researcherContractAddress).revokePatientAccess(_viewer, msg.sender) {} catch {}
+        }
+
+        if (auditContractAddress != address(0)) {
+            try IHealthcareAudit(auditContractAddress).addAuditLog(msg.sender, "ACCESS_REVOKED", _viewer, "Manual Revoke") {} catch {}
         }
     }
 

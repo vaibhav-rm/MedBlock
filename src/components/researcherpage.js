@@ -31,16 +31,23 @@ export const ResearcherLogin = ({ contract, account, connectWallet }) => {
         setError('');
         try {
             const sanitizedId = researcherId.toLowerCase();
-            const researcher = await contract.researchers(sanitizedId);
+            // Use getResearcher to verify status. If not registered, this will revert/throw.
+            const researcher = await contract.getResearcher(sanitizedId);
 
-            if (researcher.isRegistered) {
+            // If call succeeds, check the boolean just in case
+            if (researcher[2] === true || researcher.isRegistered) {
                 navigate(`/researcher-dashboard/${sanitizedId}`);
             } else {
                 setError('Account not registered as a Researcher.');
             }
         } catch (err) {
-            setError('Error verifying research status.');
             console.error(err);
+            // If contract reverts, it usually means "Researcher not registered"
+            if (err.message.includes("Researcher not registered") || err.reason === "Researcher not registered") {
+                setError('Account not registered as a Researcher.');
+            } else {
+                setError('Error verifying status. Please check your wallet connection.');
+            }
         } finally {
             setLoading(false);
         }
@@ -79,6 +86,16 @@ export const ResearcherLogin = ({ contract, account, connectWallet }) => {
                             </div>
                         </div>
 
+                        {account && researcherId && account.toLowerCase() !== researcherId.toLowerCase() && (
+                            <div className="p-3 bg-yellow-50 text-yellow-700 text-sm rounded-xl border border-yellow-200 flex items-start gap-2">
+                                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                                <div>
+                                    <span className="font-bold">Wallet Mismatch:</span> You are connected as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{account.slice(0, 6)}...</span> but trying to login as <span className="font-mono text-xs bg-yellow-100 px-1 rounded">{researcherId.slice(0, 6)}...</span>.
+                                    <div className="mt-1 text-xs opacity-90">Transactions will fail. Please switch accounts in MetaMask.</div>
+                                </div>
+                            </div>
+                        )}
+
                         {error && (
                             <motion.div
                                 initial={{ opacity: 0 }}
@@ -115,8 +132,8 @@ export const ResearcherLogin = ({ contract, account, connectWallet }) => {
                         </button>
                     </form>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 };
 
@@ -153,16 +170,15 @@ export const ResearcherDashboard = ({ researcherContract, patientContract, getSi
                 // However, 'patientContract' passed here might be read-only if signer not set?
                 // Let's assume the user is connected. If not, results will be empty.
 
-                let signedPatientContract = patientContract;
-                // Try to get a signer-connected contract if possible, though 'patientContract' from App.js
-                // should be connected if 'account' is set.
+                const { patientContract: signedPatient } = await getSignedContracts();
 
                 const patientsData = await Promise.all(
                     authorizedPatients.map(async (patientId) => {
                         const patient = await patientContract.getPatient(patientId);
                         try {
                             // This call relies on msg.sender being the researcher
-                            const patientRecords = await patientContract.getSharedRecords(patientId);
+                            // Must use signed contract to verify identity
+                            const patientRecords = await signedPatient.getSharedRecords(patientId);
                             return {
                                 id: patientId,
                                 name: patient[0],

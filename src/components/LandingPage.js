@@ -188,7 +188,7 @@ const LandingPage = ({ connectAsAdmin }) => {
                     <motion.div
                         whileHover={{ y: -5 }}
                         className="group relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:border-gray-400 transition-all cursor-pointer"
-                        onClick={connectAsAdmin}
+                        onClick={() => navigate('/admin')}
                     >
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-gray-700 to-gray-900 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="mb-6 p-4 bg-gray-50 rounded-xl w-fit group-hover:bg-gray-100 transition-colors">
