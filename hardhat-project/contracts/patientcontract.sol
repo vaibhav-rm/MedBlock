@@ -5,6 +5,21 @@ pragma solidity ^0.8.0;
     interface IDoctorManagement {
         function addPatientAccess(address _doctorAddress, address _patientAddress) external;
         function revokePatientAccess(address _doctorAddress, address _patientAddress) external;
+        function getDoctor(address _doctorAddress) external view returns (string memory, string memory, bool);
+    }
+
+    // Interface for InsuranceManagement
+    interface IInsuranceManagement {
+        function addPatientAccess(address _insurerAddress, address _patientAddress) external;
+        function revokePatientAccess(address _insurerAddress, address _patientAddress) external;
+        function getInsurer(address _insurerAddress) external view returns (string memory, string memory, bool);
+    }
+
+    // Interface for ResearcherManagement
+    interface IResearcherManagement {
+        function addPatientAccess(address _researcherAddress, address _patientAddress) external;
+        function revokePatientAccess(address _researcherAddress, address _patientAddress) external;
+        function getResearcher(address _researcherAddress) external view returns (string memory, string memory, bool);
     }
 
 contract PatientManagement {
@@ -20,6 +35,7 @@ contract PatientManagement {
         address doctor;
         bool isActive; 
         string previousVersion;
+        uint8 privacyLevel; // 0=Research/Public, 1=Standard (Insurer+), 2=Private (Doctor Only)
     }
 
     struct Patient {
@@ -36,7 +52,7 @@ contract PatientManagement {
     mapping(address => mapping(address => uint256)) public accessExpiry;
 
     event PatientRegistered(address indexed patientAddress, string username, string role);
-    event MedicalRecordAdded(address indexed patientAddress, address indexed doctorAddress, string ipfsHash, uint256 timestamp);
+    event MedicalRecordAdded(address indexed patientAddress, address indexed doctorAddress, string ipfsHash, uint256 timestamp, uint8 privacyLevel);
     event MedicalRecordUpdated(address indexed patientAddress, string oldIpfsHash, string newIpfsHash, uint256 timestamp);
     
     event AccessGranted(address indexed patient, address indexed viewer, uint256 expiry);
@@ -64,9 +80,6 @@ contract PatientManagement {
         return (patient.username, patient.role);
     }
 
-    // , bool memory isRegistered
-    // , patient.isRegistered
-
     function addMedicalRecord(
         address _patientAddress, 
         string memory _ipfsHash,
@@ -74,9 +87,11 @@ contract PatientManagement {
         string memory _fileName,
         string memory _title,
         string memory _resume,
-        string memory _previousVersion
+        string memory _previousVersion,
+        uint8 _privacyLevel
     ) external {
         require(patients[_patientAddress].isRegistered, "Patient not registered");
+        require(_privacyLevel <= 2, "Invalid privacy level");
         
         // If updating an existing record
         if (bytes(_previousVersion).length > 0) {
@@ -97,13 +112,14 @@ contract PatientManagement {
             block.timestamp,
             msg.sender,
             true, 
-            _previousVersion
+            _previousVersion,
+            _privacyLevel
         );
 
         patientRecords[_patientAddress].push(newRecord);
         recordIndexes[_ipfsHash] = patientRecords[_patientAddress].length - 1;
         
-        emit MedicalRecordAdded(_patientAddress, msg.sender, _ipfsHash, block.timestamp);
+        emit MedicalRecordAdded(_patientAddress, msg.sender, _ipfsHash, block.timestamp, _privacyLevel);
     }
 
     function getMedicalRecords(address _patientAddress) public view returns (MedicalRecord[] memory) {
@@ -116,7 +132,7 @@ contract PatientManagement {
         require(patients[_patientAddress].isRegistered, "Patient not registered");
         require(msg.sender == _patientAddress, "Access allowed only for patient owner");
         
-        // First, count active records
+        // Return all records for the owner
         uint256 activeCount = 0;
         for (uint256 i = 0; i < patientRecords[_patientAddress].length; i++) {
             if (patientRecords[_patientAddress][i].isActive) {
@@ -124,7 +140,6 @@ contract PatientManagement {
             }
         }
         
-        // Create array of active records
         MedicalRecord[] memory activeRecords = new MedicalRecord[](activeCount);
         uint256 currentIndex = 0;
         
@@ -138,13 +153,20 @@ contract PatientManagement {
         return activeRecords;
     }
 
-    // Interface for DoctorManagement
-    // Interface for DoctorManagement (defined globally)
-    
     address public doctorContractAddress;
+    address public insuranceContractAddress;
+    address public researcherContractAddress;
 
     function setDoctorContractAddress(address _doctorContractAddress) external onlyAdmin {
         doctorContractAddress = _doctorContractAddress;
+    }
+
+    function setInsuranceContractAddress(address _insuranceContractAddress) external onlyAdmin {
+        insuranceContractAddress = _insuranceContractAddress;
+    }
+
+    function setResearcherContractAddress(address _researcherContractAddress) external onlyAdmin {
+        researcherContractAddress = _researcherContractAddress;
     }
 
     function grantAccess(address _viewer, uint256 _durationSeconds) public {
@@ -156,13 +178,17 @@ contract PatientManagement {
 
         // Sync with Doctor Contract
         if (doctorContractAddress != address(0)) {
-            // We interpret _viewer as the doctor address
-            // Use try/catch in case the call fails (e.g. already exists), so we don't revert the main grant
-            try IDoctorManagement(doctorContractAddress).addPatientAccess(_viewer, msg.sender) {
-                // Success
-            } catch {
-                // Ignore failure (likely access already existed on doctor side)
-            }
+            try IDoctorManagement(doctorContractAddress).addPatientAccess(_viewer, msg.sender) {} catch {}
+        }
+        
+        // Sync with Insurance Contract
+        if (insuranceContractAddress != address(0)) {
+            try IInsuranceManagement(insuranceContractAddress).addPatientAccess(_viewer, msg.sender) {} catch {}
+        }
+
+        // Sync with Researcher Contract
+        if (researcherContractAddress != address(0)) {
+            try IResearcherManagement(researcherContractAddress).addPatientAccess(_viewer, msg.sender) {} catch {}
         }
 
         // Remove from pending requests if exists
@@ -175,23 +201,20 @@ contract PatientManagement {
             }
         }
     }
-
-
-
-    // ... (rest of contract)
     
     function revokeAccess(address _viewer) public {
         require(patients[msg.sender].isRegistered, "Sender invalid");
         accessExpiry[msg.sender][_viewer] = 0;
         emit AccessRevoked(msg.sender, _viewer);
 
-        // Sync with Doctor Contract
         if (doctorContractAddress != address(0)) {
-             try IDoctorManagement(doctorContractAddress).revokePatientAccess(_viewer, msg.sender) {
-                 // Success
-             } catch {
-                 // Ignore
-             }
+             try IDoctorManagement(doctorContractAddress).revokePatientAccess(_viewer, msg.sender) {} catch {}
+        }
+        if (insuranceContractAddress != address(0)) {
+             try IInsuranceManagement(insuranceContractAddress).revokePatientAccess(_viewer, msg.sender) {} catch {}
+        }
+        if (researcherContractAddress != address(0)) {
+             try IResearcherManagement(researcherContractAddress).revokePatientAccess(_viewer, msg.sender) {} catch {}
         }
     }
 
@@ -203,12 +226,10 @@ contract PatientManagement {
         require(patients[_patientAddress].isRegistered, "Patient not registered");
         require(_patientAddress != msg.sender, "Cannot request access to self");
         
-        // Check if already has access
         if (accessExpiry[_patientAddress][msg.sender] > block.timestamp) {
             revert("Already has access");
         }
 
-        // Check if already requested
         address[] memory requests = patientAccessRequests[_patientAddress];
         for(uint i=0; i<requests.length; i++) {
             if(requests[i] == msg.sender) revert("Request already pending");
@@ -223,6 +244,36 @@ contract PatientManagement {
         return patientAccessRequests[_patientAddress];
     }
 
+    // Determine the max privacy level the caller can see
+    function _getMaxAccessLevel(address _viewer) internal view returns (uint8) {
+        // Patient can see everything (Level 255 effectively, but we handle that in main func)
+        
+        // Check Doctor (Level 2)
+        if (doctorContractAddress != address(0)) {
+            try IDoctorManagement(doctorContractAddress).getDoctor(_viewer) returns (string memory, string memory, bool isReg) {
+                if (isReg) return 2;
+            } catch {}
+        }
+
+        // Check Insurer (Level 1)
+        if (insuranceContractAddress != address(0)) {
+            try IInsuranceManagement(insuranceContractAddress).getInsurer(_viewer) returns (string memory, string memory, bool isReg) {
+                if (isReg) return 1;
+            } catch {}
+        }
+
+        // Check Researcher (Level 0)
+        if (researcherContractAddress != address(0)) {
+            try IResearcherManagement(researcherContractAddress).getResearcher(_viewer) returns (string memory, string memory, bool isReg) {
+                if (isReg) return 0;
+            } catch {}
+        }
+
+        // Default: No access to any levels if not registered (though getting here implies 'accessExpiry' passes)
+        // If someone is not registered in ANY contract but somehow has 'accessExpiry', we default to level 0 (safest)
+        return 0; 
+    }
+
     function getSharedRecords(address _patientAddress) public view returns (MedicalRecord[] memory) {
         // Caller must be either:
         // 1. The patient themselves
@@ -232,25 +283,38 @@ contract PatientManagement {
         bool hasConsent = (accessExpiry[_patientAddress][msg.sender] > block.timestamp);
         
         require(isPatient || hasConsent, "Access denied");
+
+        uint8 maxLevel = 0;
+        if (isPatient) {
+            maxLevel = 255; // All levels
+        } else {
+            maxLevel = _getMaxAccessLevel(msg.sender);
+        }
         
-        // Return active records (Logic duplicated from getActiveRecords to avoid msg.sender restriction)
-        uint256 activeCount = 0;
+        // Count matching records
+        uint256 matchCount = 0;
         for (uint256 i = 0; i < patientRecords[_patientAddress].length; i++) {
-            if (patientRecords[_patientAddress][i].isActive) {
-                activeCount++;
+            MedicalRecord memory r = patientRecords[_patientAddress][i];
+            if (r.isActive) {
+                if (isPatient || r.privacyLevel <= maxLevel) {
+                    matchCount++;
+                }
             }
         }
         
-        MedicalRecord[] memory activeRecords = new MedicalRecord[](activeCount);
+        MedicalRecord[] memory matches = new MedicalRecord[](matchCount);
         uint256 currentIndex = 0;
         
         for (uint256 i = 0; i < patientRecords[_patientAddress].length; i++) {
-            if (patientRecords[_patientAddress][i].isActive) {
-                activeRecords[currentIndex] = patientRecords[_patientAddress][i];
-                currentIndex++;
+            MedicalRecord memory r = patientRecords[_patientAddress][i];
+            if (r.isActive) {
+                 if (isPatient || r.privacyLevel <= maxLevel) {
+                    matches[currentIndex] = r;
+                    currentIndex++;
+                }
             }
         }
         
-        return activeRecords;
+        return matches;
     }
 }

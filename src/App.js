@@ -1,239 +1,163 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserProvider, Contract } from 'ethers';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Admin, DoctorRegister, PatientRegister } from './components/adminpage';
+import { Admin, DoctorRegister, PatientRegister, InsuranceRegister, ResearcherRegister } from './components/adminpage';
 import { DoctorLogin, DoctorDashboard } from './components/doctorpage';
 import { PatientLogin, PatientDashboard } from './components/patientpage';
+import { InsuranceLogin, InsuranceDashboard } from './components/insurancepage';
+import { ResearcherLogin, ResearcherDashboard } from './components/researcherpage';
 import { Research } from './components/Research';
 import doctorContractABI from "./ABI/doctorContractABI.json";
 import patientContractABI from "./ABI/patientContractABI.json";
+import insuranceContractABI from "./ABI/insuranceContractABI.json";
+import researcherContractABI from "./ABI/researcherContractABI.json";
 import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
 
-const doctorContractAddress = "0xacbFe360F336A27940e5e785df74627A184bAAbb";
-const patientContractAddress = "0x5EbFfd687770D423a9ebFAb957b16eefcA6f7FE2";
+// UPDATED ADDRESSES
+const doctorContractAddress = "0x8fF3602a77A03eC9Cfb746B30A1342BFD5B623C0";
+const insuranceContractAddress = "0xa110A226F160B1C153F972ba1c0949D74a7899F7";
+const researcherContractAddress = "0x8f8D6f88E57edD7E9eF6aA6014d0330491670c0D";
+const patientContractAddress = "0x0b439F373A5DA216DA73982ab8E537bB5c564496";
 
-
-const Home = ({ doctorContract, patientContract, account, connectWallet }) => {
-	const [error, setError] = useState('');
-	const navigate = useNavigate();
-
-	const connectAsAdmin = async () => {
-		try {
-
-			await connectWallet();
-			// Re-fetch owner details after connection to be sure
-			// Note: In a real app we might want to wait for state update or fetch directly
-			// For now, relying on the contract instances passed in
-			const doctorOwner = await doctorContract.admin();
-			const patientOwner = await patientContract.admin();
-
-			const currentAccount = account || (await (new BrowserProvider(window.ethereum)).getSigner()).address;
-
-			if (!currentAccount
-				|| doctorOwner.toLowerCase() !== currentAccount.toLowerCase()
-				|| patientOwner.toLowerCase() !== currentAccount.toLowerCase()) {
-				setError('Not authorized as admin');
-				return;
-			}
-			navigate('/admin');
-
-		} catch (err) {
-			console.error(err);
-			setError('Error verifying admin or connecting wallet');
-		}
-	};
-
-	return (
-		<>
-			<LandingPage connectAsAdmin={connectAsAdmin} />
-			{error && (
-				<div className="fixed bottom-4 right-4 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 shadow-lg animate-bounce">
-					{error}
-				</div>
-			)}
-		</>
-	);
-};
-
-
-const App = () => {
+function App() {
 	const [doctorContract, setDoctorContract] = useState(null);
 	const [patientContract, setPatientContract] = useState(null);
-	const [account, setAccount] = useState('');
-	const [provider, setProvider] = useState(null);
-	const [signer, setSigner] = useState(null);
+	const [insuranceContract, setInsuranceContract] = useState(null);
+	const [researcherContract, setResearcherContract] = useState(null);
+	const [account, setAccount] = useState(null);
 
 	const connectWallet = async () => {
-		if (!window.ethereum) return;
-		try {
-			const accounts = await window.ethereum.request({
-				method: 'eth_requestAccounts'
-			});
-			setAccount(accounts[0]);
-
-			if (provider) {
-				const newSigner = await provider.getSigner();
-				setSigner(newSigner);
+		if (window.ethereum) {
+			try {
+				const provider = new BrowserProvider(window.ethereum);
+				const signer = await provider.getSigner();
+				setAccount(await signer.getAddress());
+			} catch (error) {
+				console.error("Error connecting wallet:", error);
 			}
-		} catch (err) {
-			console.error("Error connecting wallet:", err);
+		} else {
+			alert("Please install Metamask!");
 		}
 	};
-
-	useEffect(() => {
-		const init = async () => {
-			if (window.ethereum) {
-				const provider = new BrowserProvider(window.ethereum);
-				setProvider(provider);
-
-				// Helper to create contracts with signer if available, else provider
-				const updateContracts = async (signerOrProvider) => {
-					const doctorContract = new Contract(doctorContractAddress, doctorContractABI.abi, signerOrProvider);
-					const patientContract = new Contract(patientContractAddress, patientContractABI.abi, signerOrProvider);
-					setDoctorContract(doctorContract);
-					setPatientContract(patientContract);
-				};
-
-				// Initial Load
-				const accounts = await provider.listAccounts();
-				if (accounts.length > 0) {
-					setAccount(accounts[0].address);
-					const signer = await provider.getSigner();
-					setSigner(signer);
-					updateContracts(signer);
-				} else {
-					// Fallback to provider if no wallet connected yet (readonly)
-					updateContracts(provider);
-				}
-
-				window.ethereum.on('accountsChanged', async (accounts) => {
-					setAccount(accounts[0] || '');
-					if (accounts[0]) {
-						const newSigner = await provider.getSigner();
-						setSigner(newSigner);
-						updateContracts(newSigner);
-					} else {
-						setSigner(null);
-						updateContracts(provider);
-					}
-				});
-			}
-		};
-
-		init();
-	}, []);
-
-	// Check Network
-	useEffect(() => {
-		const checkNetwork = async () => {
-			if (window.ethereum) {
-				const chainId = await window.ethereum.request({ method: 'eth_chainId' });
-				// Sepolia ChainID is 11155111 (0xaa36a7)
-				if (chainId !== '0xaa36a7') {
-					try {
-						await window.ethereum.request({
-							method: 'wallet_switchEthereumChain',
-							params: [{ chainId: '0xaa36a7' }],
-						});
-					} catch (switchError) {
-						// This error code indicates that the chain has not been added to MetaMask.
-						if (switchError.code === 4902) {
-							console.error("Sepolia network is not added to MetaMask");
-							alert("Please add Sepolia Testnet to MetaMask");
-						} else {
-							console.error('Failed to switch network:', switchError);
-							alert('Please switch to Sepolia Testnet manually.');
-						}
-					}
-				}
-			}
-		};
-		checkNetwork();
-	}, [account]);
 
 	const getSignedContracts = async () => {
-		if (!signer) {
-			// Double check signature availability
-			const newSigner = await provider.getSigner();
-			setSigner(newSigner);
-			return {
-				doctorContract: doctorContract.connect(newSigner),
-				patientContract: patientContract.connect(newSigner)
-			};
-		}
+		if (!window.ethereum) throw new Error("No crypto wallet found");
+		const provider = new BrowserProvider(window.ethereum);
+		const signer = await provider.getSigner();
+
+		const signedDoctorContract = new Contract(doctorContractAddress, doctorContractABI, signer);
+		const signedPatientContract = new Contract(patientContractAddress, patientContractABI, signer);
+		const signedInsuranceContract = new Contract(insuranceContractAddress, insuranceContractABI, signer);
+		const signedResearcherContract = new Contract(researcherContractAddress, researcherContractABI, signer);
+
 		return {
-			doctorContract: doctorContract.connect(signer),
-			patientContract: patientContract.connect(signer)
+			doctorContract: signedDoctorContract,
+			patientContract: signedPatientContract,
+			insuranceContract: signedInsuranceContract,
+			researcherContract: signedResearcherContract
 		};
 	};
 
-	if (!doctorContract || !patientContract) return <div className="min-h-screen flex items-center justify-center text-blue-600 bg-blue-50">Initializing App...</div>;
+	useEffect(() => {
+		const loadContracts = async () => {
+			try {
+				const provider = new BrowserProvider(window.ethereum);
+
+				const docContract = new Contract(doctorContractAddress, doctorContractABI, provider);
+				const patContract = new Contract(patientContractAddress, patientContractABI, provider);
+				const insContract = new Contract(insuranceContractAddress, insuranceContractABI, provider);
+				const resContract = new Contract(researcherContractAddress, researcherContractABI, provider);
+
+				setDoctorContract(docContract);
+				setPatientContract(patContract);
+				setInsuranceContract(insContract);
+				setResearcherContract(resContract);
+
+				// Check if wallet is already connected
+				const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+				if (accounts.length > 0) {
+					setAccount(accounts[0]);
+				}
+
+				// Listen for account changes
+				window.ethereum.on('accountsChanged', (accounts) => {
+					setAccount(accounts[0] || null);
+				});
+
+			} catch (error) {
+				console.error("Error loading contracts:", error);
+			}
+		};
+
+		if (window.ethereum) {
+			loadContracts();
+		}
+	}, []);
 
 	return (
 		<BrowserRouter>
-			<Navbar account={account} />
+			<Navbar account={account} connectWallet={connectWallet} />
 			<Routes>
-				<Route path="/" element={
-					<Home
-						doctorContract={doctorContract}
-						patientContract={patientContract}
-						account={account}
-						connectWallet={connectWallet}
-					/>
-				} />
+				<Route path="/" element={<LandingPage />} />
 
+				{/* Admin Routes */}
 				<Route path="/admin" element={<Admin />} />
+				<Route path="/register-doctor" element={<DoctorRegister getSignedContracts={getSignedContracts} />} />
+				<Route path="/register-patient" element={<PatientRegister getSignedContracts={getSignedContracts} />} />
+				<Route path="/register-insurance" element={<InsuranceRegister getSignedContracts={getSignedContracts} />} />
+				<Route path="/register-researcher" element={<ResearcherRegister getSignedContracts={getSignedContracts} />} />
 
-				<Route path="/register-doctor" element={
-					<DoctorRegister getSignedContracts={getSignedContracts} />
-				} />
-
-				<Route path="/register-patient" element={
-					<PatientRegister getSignedContracts={getSignedContracts}
-					/>} />
-
-
-				<Route path="/doctor-login" element={
-					<DoctorLogin
-						contract={doctorContract}
-						account={account}
-						connectWallet={connectWallet}
-					/>
-				} />
-
+				{/* Doctor Routes */}
+				<Route path="/doctor-login" element={<DoctorLogin contract={doctorContract} account={account} connectWallet={connectWallet} />} />
 				<Route path="/doctor-dashboard/:id" element={
 					<DoctorDashboard
 						doctorContract={doctorContract}
 						patientContract={patientContract}
 						getSignedContracts={getSignedContracts}
-						account={account}
 					/>
 				} />
 
-				<Route path="/patient-login" element={
-					<PatientLogin
-						contract={patientContract}
-						account={account}
-						connectWallet={connectWallet}
-					/>
-				} />
-
+				{/* Patient Routes */}
+				<Route path="/patient-login" element={<PatientLogin contract={patientContract} />} />
 				<Route path="/patient-dashboard/:id" element={
 					<PatientDashboard
 						doctorContract={doctorContract}
 						patientContract={patientContract}
+						insuranceContract={insuranceContract}
+						researcherContract={researcherContract}
 						getSignedContracts={getSignedContracts}
 						account={account}
 					/>
 				} />
 
-				<Route path="/research" element={<Research patientContract={patientContract} account={account} connectWallet={connectWallet} />} />
+				{/* Insurance Routes */}
+				<Route path="/insurance-login" element={<InsuranceLogin contract={insuranceContract} account={account} connectWallet={connectWallet} />} />
+				<Route path="/insurance-dashboard/:id" element={
+					<InsuranceDashboard
+						insuranceContract={insuranceContract}
+						patientContract={patientContract}
+						requestContract={null} // Audit not used/removed
+						getSignedContracts={getSignedContracts}
+					/>
+				} />
 
-				<Route path="*" element={<Navigate to="/" />} />
+				{/* Researcher Routes */}
+				<Route path="/researcher-login" element={<ResearcherLogin contract={researcherContract} account={account} connectWallet={connectWallet} />} />
+				<Route path="/researcher-dashboard/:id" element={
+					<ResearcherDashboard
+						researcherContract={researcherContract}
+						patientContract={patientContract}
+						getSignedContracts={getSignedContracts}
+					/>
+				} />
+
+				{/* Legacy Research Route (Optional or remove) */}
+				{/* <Route path="/research" element={<Research />} /> */}
+
 			</Routes>
 		</BrowserRouter>
 	);
-};
+}
 
-export default App;  
+export default App;

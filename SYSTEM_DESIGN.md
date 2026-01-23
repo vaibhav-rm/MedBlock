@@ -1,6 +1,6 @@
 # Medical Block System Design
 
-This document outlines the architecture, user flows, and data interaction models for the Medical-Record-With-Blockchain application.
+This document outlines the architecture, user flows, and data interaction models for the MedBloc.
 
 ## 1. System Architecture
 
@@ -8,7 +8,7 @@ The application follows a Decentralized Application (dApp) architecture, leverag
 
 ```mermaid
 graph TD
-    User[User (Patient/Doctor)] -->|Interacts via Browser| FE[Frontend application (React + ethers.js)]
+    User["User (Patient/Doctor)"] -->|Interacts via Browser| FE["Frontend application (React + ethers.js)"]
     
     subgraph "Blockchain Layer (Ethereum/Sepolia)"
         FE -->|Read/Write State| PC[Patient Contract]

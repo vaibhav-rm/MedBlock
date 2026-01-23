@@ -1,13 +1,13 @@
 {
   "_format": "hh-sol-artifact-1",
-  "contractName": "IDoctorManagement",
+  "contractName": "IInsuranceManagement",
   "sourceName": "contracts/patientcontract.sol",
   "abi": [
     {
       "inputs": [
         {
           "internalType": "address",
-          "name": "_doctorAddress",
+          "name": "_insurerAddress",
           "type": "address"
         },
         {
@@ -25,11 +25,11 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "_doctorAddress",
+          "name": "_insurerAddress",
           "type": "address"
         }
       ],
-      "name": "getDoctor",
+      "name": "getInsurer",
       "outputs": [
         {
           "internalType": "string",
@@ -54,7 +54,7 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "_doctorAddress",
+          "name": "_insurerAddress",
           "type": "address"
         },
         {

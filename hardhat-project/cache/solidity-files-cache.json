@@ -38,8 +38,8 @@
       ]
     },
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/patientcontract.sol": {
-      "lastModificationDate": 1768740619057,
-      "contentHash": "31a6862b406a966de345e8728406162e",
+      "lastModificationDate": 1769185924867,
+      "contentHash": "83bea36329094c365a6c7213d09d5592",
       "sourceName": "contracts/patientcontract.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -71,7 +71,81 @@
       ],
       "artifacts": [
         "IDoctorManagement",
+        "IInsuranceManagement",
+        "IResearcherManagement",
         "PatientManagement"
+      ]
+    },
+    "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/InsuranceManagement.sol": {
+      "lastModificationDate": 1769184427007,
+      "contentHash": "5d5bb9e57262663394ce9267378e424f",
+      "sourceName": "contracts/InsuranceManagement.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "InsuranceManagement"
+      ]
+    },
+    "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/ResearcherManagement.sol": {
+      "lastModificationDate": 1769185784665,
+      "contentHash": "6445f20632fd4b109ec3d7a90ab08426",
+      "sourceName": "contracts/ResearcherManagement.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.0"
+      ],
+      "artifacts": [
+        "ResearcherManagement"
       ]
     }
   }

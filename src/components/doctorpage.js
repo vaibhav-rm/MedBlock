@@ -146,6 +146,7 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [privacyLevel, setPrivacyLevel] = useState('1');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -210,7 +211,8 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
         file.name,
         title.trim(),
         description.trim(),
-        ''
+        '',
+        parseInt(privacyLevel)
       );
 
       await tx.wait();
@@ -409,15 +411,46 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                      <textarea
-                        value={description}
-                        onChange={(e) => setDescription(e.target.value)}
-                        className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
-                        placeholder="Add clinical notes, observations, or prescriptions..."
-                        rows="3"
-                      />
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                        <textarea
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
+                          placeholder="Clinical notes..."
+                          rows="3"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Privacy Level</label>
+                        <div className="space-y-2">
+                          <label className="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" name="privacy" value="2" checked={privacyLevel === '2'} onChange={(e) => setPrivacyLevel(e.target.value)} className="w-4 h-4 text-blue-600" />
+                            <div className="ml-3">
+                              <span className="block text-sm font-medium text-gray-900">Private (Doctor Only)</span>
+                              <span className="block text-xs text-gray-500">Only authorized doctors can view</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" name="privacy" value="1" checked={privacyLevel === '1'} onChange={(e) => setPrivacyLevel(e.target.value)} className="w-4 h-4 text-blue-600" />
+                            <div className="ml-3">
+                              <span className="block text-sm font-medium text-gray-900">Standard (Insurers+Doctors)</span>
+                              <span className="block text-xs text-gray-500">Visible to doctors and insurers</span>
+                            </div>
+                          </label>
+
+                          <label className="flex items-center p-3 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+                            <input type="radio" name="privacy" value="0" checked={privacyLevel === '0'} onChange={(e) => setPrivacyLevel(e.target.value)} className="w-4 h-4 text-blue-600" />
+                            <div className="ml-3">
+                              <span className="block text-sm font-medium text-gray-900">Research (Public)</span>
+                              <span className="block text-xs text-gray-500">Available to verified researchers</span>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex justify-end pt-2">
@@ -429,7 +462,7 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
                         {submitting ? (
                           <>
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            Uploading to IPFS...
+                            Uploading...
                           </>
                         ) : (
                           <>

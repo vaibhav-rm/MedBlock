@@ -115,7 +115,7 @@ const LandingPage = ({ connectAsAdmin }) => {
                     <p className="text-xl text-gray-600">Secure access for every stakeholder in the healthcare ecosystem</p>
                 </motion.div>
 
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 justify-center">
                     {/* Patient Card */}
                     <motion.div
                         whileHover={{ y: -5 }}
@@ -154,7 +154,7 @@ const LandingPage = ({ connectAsAdmin }) => {
                     <motion.div
                         whileHover={{ y: -5 }}
                         className="group relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:border-purple-200 transition-all cursor-pointer"
-                        onClick={() => navigate('/research')}
+                        onClick={() => navigate('/researcher-login')}
                     >
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-purple-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
                         <div className="mb-6 p-4 bg-purple-50 rounded-xl w-fit group-hover:bg-purple-100 transition-colors">
@@ -164,6 +164,23 @@ const LandingPage = ({ connectAsAdmin }) => {
                         <p className="text-gray-500 mb-6">Access anonymized data for medical research.</p>
                         <div className="flex items-center text-purple-600 font-medium">
                             Access Portal <ChevronRight className="w-4 h-4 ml-1" />
+                        </div>
+                    </motion.div>
+
+                    {/* Insurance Card */}
+                    <motion.div
+                        whileHover={{ y: -5 }}
+                        className="group relative bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:border-emerald-200 transition-all cursor-pointer"
+                        onClick={() => navigate('/insurance-login')}
+                    >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-t-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="mb-6 p-4 bg-emerald-50 rounded-xl w-fit group-hover:bg-emerald-100 transition-colors">
+                            <Shield className="w-8 h-8 text-emerald-600" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 mb-2">Insurance</h3>
+                        <p className="text-gray-500 mb-6">Verify treatments and process claims securely.</p>
+                        <div className="flex items-center text-emerald-600 font-medium">
+                            Login as Insurer <ChevronRight className="w-4 h-4 ml-1" />
                         </div>
                     </motion.div>
 
