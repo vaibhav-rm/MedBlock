@@ -1,0 +1,26 @@
+export const Colors = {
+    light: {
+        text: '#333333',
+        background: '#F5F5F5',
+        tint: '#008080',
+        icon: '#666666',
+        tabIconDefault: '#666666',
+        tabIconSelected: '#008080',
+        primary: "#008080",
+        secondary: "#FF7F50",
+        success: "#28a745",
+        error: "#dc3545",
+    },
+    dark: {
+        text: '#ECEDEE',
+        background: '#151718',
+        tint: '#fff',
+        icon: '#9BA1A6',
+        tabIconDefault: '#9BA1A6',
+        tabIconSelected: '#fff',
+        primary: "#008080",
+        secondary: "#FF7F50",
+        success: "#28a745",
+        error: "#dc3545",
+    },
+};

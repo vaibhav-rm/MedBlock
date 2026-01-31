@@ -1,0 +1,195 @@
+# 📱 MedBlock Mobile App — Design Vision & UI Guide
+
+This design doc translates the **illustrative branding style** of Medico into a visual language for the **MedBlock Mobile App UI/UX** — ensuring a cohesive, friendly, and health-centric appearance across all screens.
+
+The inspiration reflects a **modern, intuitive medical branding aesthetic** featuring friendly graphic elements, calm color palettes, and approachable typography typical of healthcare designs on Dribbble. ([Dribbble][1])
+
+---
+
+## 🎨 1. Design Inspiration Summary
+
+**Medico Illustration Mood & Style**
+
+* **Purpose-driven health visuals:** Illustrations showing connectivity between users and healthcare services. ([Dribbble][1])
+* **Warm, trust-evoking color usage:** Likely soft tones that represent health and wellbeing. ([Dribbble][2])
+* **Clean, open layout for trust & clarity:** Ample white space, soft curves, comfortable for medical context. ([Dribbble][1])
+
+---
+
+## 🎨 2. Visual Identity & Branding
+
+### 🎨 2.1 Color Palette
+
+| Purpose    | Color Example                    |
+| ---------- | -------------------------------- |
+| Primary    | Soft Teal / Aqua (health, trust) |
+| Secondary  | Warm Coral (emphasis & alerts)   |
+| Background | Off-white / light gray           |
+| Text       | Charcoal / Dark Gray             |
+| Success    | Green                            |
+| Error      | Red                              |
+
+💡 Keep colors calm and accessible — grouping UI states around intuitive health cues. ([Dribbble][2])
+
+---
+
+### 🔠 2.2 Typography
+
+| Element           | Style                     |
+| ----------------- | ------------------------- |
+| Headings          | Bold, friendly, legible   |
+| Body Text         | Regular, clean            |
+| Captions & Labels | Light, small but readable |
+
+*Inspired by modern health brand typography — minimal and user-friendly.* ([Dribbble][2])
+
+---
+
+### 🎨 2.3 Illustration Style
+
+App illustrations should follow:
+
+* Flat / semi-flat vector style
+* Minimalistic characters (patients / doctors)
+* Soothing, pleasant posture and interaction visuals
+* Scene elements showing connectivity between people and health data
+
+These styles are common in medical branding inspiration on Dribbble. ([Dribbble][3])
+
+---
+
+## 🧭 3. UI Layout & Components
+
+### 🏠 3.1 Splash & Onboarding
+
+**Splash Screen**
+
+* App logo + welcoming medical illustration
+* Brief tagline like *“Your Health. Your Control.”*
+
+**Onboarding Screens**
+
+* Scrollable cards explaining:
+
+  * Wallet-based login
+  * Secure decentralized records
+  * Role-based access control
+* Add illustrations trained on the Medico style: friendly, simplified medical scenes.
+
+---
+
+### 🧠 3.2 Authentication Screens
+
+**Wallet Connect**
+
+* Big, clear button for “Connect Wallet”
+* Supported methods: MetaMask, WalletConnect v2
+  *(WalletConnect needed for mobile wallets)*
+
+**Role Indicator**
+
+* Once logged in, display clear role card (Patient / Doctor / Admin / Researcher / Insurer)
+* Use color accents for roles (e.g., teal for patient, blue for doctor)
+
+---
+
+## 📊 4. Dashboard Style Overview
+
+### 📑 4.1 Patient Dashboard
+
+**Top Section**
+
+* Greeting with profile icon
+* Medical status card with relevant stats (e.g., upcoming expiries)
+
+**Cards / Quick Actions**
+
+* View Records
+* Grant Access
+* Audit Log
+* Notifications
+
+**Illustration Slot**
+
+* A central friendly hero illustration (health analytics, connectivity between services)
+
+---
+
+### 🧑‍⚕️ 4.2 Doctor Dashboard
+
+* Patient search box
+* Active access cards with expiry timers
+* Upload records button with friendly icon
+* Quick stats / alerts
+
+---
+
+### 📊 4.3 Researcher / Insurer Dashboard
+
+* Anonymized data list/cards
+* Filters for research timeframe / type
+* Secure button for “Request Extended Access”
+
+---
+
+## 🧱 5. Component & UI Kit Concepts
+
+| UI Element    | Style Description                     |
+| ------------- | ------------------------------------- |
+| Buttons       | Rounded, shadow-light; primary accent |
+| Dropdowns     | Clear, simple, accessible             |
+| Toggles       | Soft, rounded slider                  |
+| Cards         | Slight elevation with colored headers |
+| Modals        | Full-width with soft backdrop         |
+| Notifications | Light banners, brief text             |
+
+---
+
+## 🖼 Example UI Flow
+
+### 🧠 Patient: Grant Access
+
+Screen flow:
+
+1. Patient selects “Grant Access”
+2. Dropdown to choose role + user address
+3. Duration sliders (7d, 30d, custom)
+4. “Confirm” button with transaction preview
+
+**Illustration Tip:** Use a small vector showing user granting digital access gesture — like handing a *digital health key* to an avatar.
+
+---
+
+## 📱 6. Illustrations & States
+
+Add unique illustrations for:
+
+* Empty states: *No records yet*
+* Success: *Access granted*
+* Error: *Failed to connect wallet*
+* Loading: *Fetching data*
+  These illustrations should feel *warm and reassuring* rather than clinical, inspired by designs in health branding galleries. ([Dribbble][3])
+
+---
+
+## 🧠 7. Accessibility & UX
+
+* **High contrast text & icons**
+* **Large touch targets**
+* **Readable type sizes**
+* Avoid overly clinical design; prefer warmth and simplicity
+  (This aligns with good health branding principles seen in Dribbble portfolios.) ([Dribbble][2])
+
+---
+
+## 📌 Summary
+
+**MedBlock Mobile UI** should:
+✔ Feel trustworthy & human-centric
+✔ Use soft, calming colors
+✔ Employ approachable illustrations (inspired by Medico style)
+✔ Follow healthcare branding design norms (Dribbble style trend) ([Dribbble][1])
+
+[1]: https://dribbble.com/shots/24141413-Medico-Health-Branding-Illustration?utm_source=chatgpt.com "Medico - Health Branding Illustration"
+[2]: https://dribbble.com/tags/healthcare-branding?utm_source=chatgpt.com "Healthcare Branding"
+[3]: https://dribbble.com/tags/health-branding?utm_source=chatgpt.com "Health Branding"

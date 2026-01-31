@@ -1,171 +1,229 @@
-# Medical Block System Design
+# MedBlock: The Ultimate System Design & Technical Reference
 
-This document outlines the architecture, user flows, and data interaction models for the MedBloc.
+**Date:** January 24, 2026
+**Status:** Production-Ready (Testnet)
 
-## 1. System Architecture & Tech Stack
+---
 
-The application follows a Decentralized Application (dApp) architecture, leveraging Ethereum for access control and IPFS for secure, distributed storage of medical records.
+## 1. Abstract
 
-### Technology Stack
-*   **Smart Contracts**: Solidity (v0.8+)
-*   **Blockchain Network**: Ethereum Sepolia Testnet
-*   **Storage**: IPFS (InterPlanetary File System)
-*   **Frontend**: React.js, Ethers.js v6, Tailwind CSS
-*   **Development**: Hardhat, Docker
+MedBlock is re-engineers the traditional healthcare data model by moving from **Institution-Centric** storage (where hospitals own data) to **Patient-Centric** ownership (where patients own data).
+
+This is achieved through a **Hybrid Decentralized Architecture**:
+1.  **Identity & Permissions**: Managed on-chain via **Ethereum Smart Contracts**.
+2.  **Data Persistence**: Managed off-chain via **IPFS (InterPlanetary File System)**.
+
+This document serves as the definitive technical guide to the entire MedBlock ecosystem, detailing every interaction, data structure, and security mechanism.
+
+---
+
+## 2. Architectural Philosophy
+
+The system is built on the principe of **"Trust through Verification"**.
+
+### 2.1 The "Data Silo" Problem
+Current systems fragment patient history. A patient visiting five different specialists often leaves traces of their medical history in five disconnected databases.
+*   **Consequence**: Incomplete diagnosis, redundant testing, and data leakage.
+
+### 2.2 The MedBlock Solution
+MedBlock acts as a **Universal Index**.
+*   The *File* stays distributed (IPFS).
+*   The *Index* stays global (Blockchain).
+*   The *Key* stays with the Patient.
+
+---
+
+## 3. System Architecture: The "Five-Contract" Ecosystem
+
+The backend logic is not monolithic. It is a cluster of specialized micro-contracts that interact via Interfaces.
 
 ```mermaid
 graph TD
-    User["User (Patient/Doctor)"] -->|Interacts via Browser| FE["Frontend application (React + ethers.js)"]
-    
-    subgraph "Blockchain Layer (Ethereum/Sepolia)"
-        FE -->|Read/Write State| PC[Patient Contract]
-        FE -->|Read/Write State| DC[Doctor Contract]
-        PC <-->|Verify Registration| DC
+    subgraph "Core Kernel"
+        PM[PatientManagement.sol]
     end
-    
-    subgraph "Storage Layer"
-        FE -->|Upload Files| IPFS[IPFS Node]
-        FE -->|Retrieve Files| IPFS
-        IPFS -->|Return CID| FE
+
+    subgraph "Identity Providers"
+        DM[DoctorManagement.sol]
+        RM[ResearcherManagement.sol]
+        IM[InsuranceManagement.sol]
     end
-    
-    subgraph "Authentication"
-        MetaMask[MetaMask Wallet] -->|Sign Transactions| FE
+
+    subgraph "Logging Layer"
+        Audit[HealthcareAudit.sol]
     end
+
+    PM -->|1. Check Registration| DM
+    PM -->|1. Check Registration| RM
+    PM -->|1. Check Registration| IM
+    PM -->|2. Log Action| Audit
+    DM -->|2. Log Action| Audit
 ```
 
-### Key Components
-*   **Frontend (React)**: Handles user interface, wallet connection, and logic.
-*   **Smart Contracts (Solidity)**:
-    *   `PatientContract`: Manages patient registry, medical records (CIDs), and access control rules.
-    *   `DoctorContract`: Manages doctor registry and authorized patient lists.
-*   **IPFS (InterPlanetary File System)**: Stores the actual medical record files (PDFs, Images) ensuring decentralization.
-*   **MetaMask**: Provides identity management and transaction signing.
+### 3.1 PatientManagement.sol (The Kernel)
+This contract is the **Single Source of Truth** for data ownership.
+*   **State Variables**:
+    *   `mapping(address => Patient)`: The registry.
+    *   `mapping(address => MedicalRecord[])`: The actual data pointer.
+    *   `mapping(address => mapping(address => uint256)) accessExpiry`: The permission matrix.
+*   **Responsibilities**:
+    *   Validating uploader permissions (`msg.sender` == Doctor).
+    *   Validating viewer permissions (`block.timestamp` < expiry).
+    *   Routing identity checks to external contracts.
+
+### 3.2 DoctorManagement.sol (The Gatekeeper)
+*   **Responsibilities**:
+    *   Curates the list of valid Doctors.
+    *   Maintains `authorizedPatients` mapping for Doctors (Quick-access list).
+    *   **Security**: Only the `Admin` can verify/add new doctors, preventing Sybil attacks.
+
+### 3.3 HealthcareAudit.sol (The Black Box)
+*   **Responsibilities**:
+    *   The "Flight Recorder" of the blockchain.
+    *   Stores `struct AuditLog { address actor; string action; address target; ... }`.
+    *   **Immutability**: Once written, logs cannot be deleted, providing a forensic trail for malpractice or data misuse.
 
 ---
 
-## 2. User Flowcharts
+## 4. Visual Workflows
 
-### 2.1 Registration & Authentication
-Users must register for a specific role (Patient or Doctor) before accessing features.
+### 4.1 Workflow: Patient Registration (The Onboarding)
 
-```mermaid
-flowchart TD
-    Start([User Visits Landing Page]) --> Choice{Select Role}
-    
-    Choice -->|Patient| P_Login[Patient Login Page]
-    Choice -->|Doctor| D_Login[Doctor Login Page]
-    
-    P_Login --> CheckP{Wallet Connected?}
-    D_Login --> CheckD{Wallet Connected?}
-    
-    CheckP -- No --> ConnectP[Connect MetaMask] --> CheckP
-    CheckD -- No --> ConnectD[Connect MetaMask] --> CheckD
-    
-    CheckP -- Yes --> IsRegP{Is Registered?}
-    CheckD -- Yes --> IsRegD{Is Registered?}
-    
-    IsRegP -- No --> RegP[Register Patient Form] -->|Submit Tx| PendingP[Wait for Admin/Contract] --> DashboardP
-    IsRegD -- No --> RegD[Register Doctor Form] -->|Submit Tx| PendingD[Wait for Admin/Contract] --> DashboardD
-    
-    IsRegP -- Yes --> DashboardP[Patient Dashboard]
-    IsRegD -- Yes --> DashboardD[Doctor Dashboard]
-```
-
-### 2.2 Medical Record Upload (Doctor)
-Doctors upload records for authorized patients.
+Users cannot simply "exist"; they must be explicitly registered to prevent spam.
 
 ```mermaid
 sequenceDiagram
-    participant Doc as Doctor (Frontend)
+    participant User
+    participant Frontend
+    participant Admin
+    participant Blockchain
+    participant Audit
+
+    User->>Frontend: Fills Registration Form
+    Frontend->>Admin: Sends Data (Off-chain request)
+    Admin->>Blockchain: Call registerPatient(UserAddr)
+    Blockchain->>Blockchain: Create Patient Struct
+    Blockchain->>Audit: Log "PATIENT_REGISTERED"
+    Blockchain-->>Frontend: Emit Event PatientRegistered
+    Frontend-->>User: "Welcome to MedBlock"
+```
+
+### 4.2 Workflow: The Secure Upload Lifecycle
+
+How a static file becomes a secured blockchain asset.
+
+```mermaid
+sequenceDiagram
+    participant Doctor
+    participant UI as Frontend
     participant IPFS
-    participant BC as Blockchain (Smart Contract)
-    
-    Doc->>Doc: Select Patient
-    Doc->>Doc: Fill Record Form (File, Title)
-    Doc->>IPFS: Upload File
-    IPFS-->>Doc: Return CID (Content Hash)
-    Doc->>BC: addMedicalRecord(patientAddr, CID, metaData)
-    BC-->>Doc: Emit Event (RecordAdded)
-    Doc->>Doc: Update UI with New Record
+    participant PM as PatientContract
+    participant Audit
+
+    Doctor->>UI: Select Patient & File
+    UI->>IPFS: Upload Encrypted File
+    IPFS-->>UI: Return Content Hash (CID) 'Qm123...'
+    UI->>PM: addMedicalRecord(PatientAddr, CID)
+    PM->>PM: Check Doctor's Active Access
+    PM->>PM: Update internal storage
+    PM->>Audit: Add Log "RECORD_ADDED"
+    PM-->>UI: Success Event
 ```
 
-### 2.3 Access Control Flow
-Patients control who can view their records via a time-limited grant system.
+### 4.3 Workflow: Granular Access Retrieval
+
+The decision tree for "Can I see this file?".
 
 ```mermaid
-stateDiagram-v2
-    [*] --> NoAccess
+flowchart TD
+    Start([User Requests File]) --> Login{Is Registered?}
+    Login -- No --> Deny[Access Denied]
+    Login -- Yes --> RoleCheck{What is Role?}
     
-    NoAccess --> RequestPending : Doctor Requests Access
-    RequestPending --> AccessGranted : Patient Approves
-    RequestPending --> NoAccess : Patient Rejects
+    RoleCheck -- Patient --> OwnerCheck{Is Own Record?}
+    OwnerCheck -- Yes --> Grant[Grant Access]
     
-    NoAccess --> AccessGranted : Patient Manually Grants
+    RoleCheck -- Doctor --> TimeCheck{Access Not Expired?}
+    TimeCheck -- No --> Deny
+    TimeCheck -- Yes --> LevelCheck1{Privacy <= 2?}
+    LevelCheck1 -- Yes --> Grant
     
-    state AccessGranted {
-        [*] --> TimerRunning
-        TimerRunning --> Expired : Time Elapsed
-        TimerRunning --> Revoked : Patient Revokes
-    }
+    RoleCheck -- Insurer --> TimeCheck2{Access Not Expired?}
+    TimeCheck2 -- Yes --> LevelCheck2{Privacy <= 1?}
+    LevelCheck2 -- Yes --> Grant
+    LevelCheck2 -- No --> Deny[Denied: Too Sensitive]
     
-    Expired --> NoAccess
-    Revoked --> NoAccess
+    RoleCheck -- Researcher --> LevelCheck3{Privacy == 0?}
+    LevelCheck3 -- Yes --> Grant
+    LevelCheck3 -- No --> Deny[Denied: Private Data]
 ```
 
 ---
 
-## 3. Methodology & Security Model
+## 5. Privacy Levels & Data Taxonomy
 
-The system enforces strict security through cryptographic verification and decentralized consensus.
+MedBlock recognizes that not all medical data is equal. A "Sick Leave Certificate" is different from "Psychotherapy Notes".
 
-### 3.1 Role-Based Access Control (RBAC) Methodology
-The system strictly separates concerns into variable contracts:
-1.  **PatientManagement**: The "Core" that holds data ownership.
-2.  **DoctorManagement**: Verified Doctor Registry.
-3.  **ResearcherManagement / InsuranceManagement**: Specialized stakeholders.
-4.  **HealthcareAudit**: Immutable logging.
+### Level 0: Public / Research
+*   **Definition**: Data that is anonymized or low-risk.
+*   **Examples**: Blood Type, Vaccination Status, Generic Allergies.
+*   **Access**: Open to **Researchers**, **Insurers**, **Doctors**.
 
-**Rule:** `msg.sender` must always match the authorized entity. There are no "admin backdoors" to view private data.
+### Level 1: Standard / Administrative
+*   **Definition**: General medical history required for claims and treatment.
+*   **Examples**: X-Rays, Lab Reports, Prescriptions, Hospital Discharge Summaries.
+*   **Access**: Open to **Insurers** (for claims) and **Doctors**. **Hidden from Researchers**.
 
-### 3.2 Data Privacy Flow
-*   **Public Data**: Wallet addresses, Registration status.
-*   **Protected Data**: IPFS CIDs (Links to files).
-*   **Access Logic**:
-    1.  User requests a file.
-    2.  Smart Contract checks: `if (msg.sender == patient || allowed[patient][msg.sender] > now)`
-    3.  If strict check passes, Frontend receives the IPFS CID.
-    4.  Frontend fetches file from IPFS using CID.
-
-```mermaid
-graph LR
-    subgraph "Secure Data Retrieval"
-        Req(Request Record) --> Contract{Check Permission}
-        Contract -- Allowed --> GetCID[Get IPFS CID]
-        Contract -- Denied --> Error[Access Denied Error]
-        GetCID --> Fetch[Fetch from IPFS]
-        Fetch --> View[Display to User]
-    end
-```
-
-### 3.3 Audit Methodology
-Every critical state change emits an event and calls the `HealthcareAudit` contract.
-*   **Transparency**: Patients can see exactly when a Doctor or Insurer accessed their files.
-*   **Non-Repudiation**: Blockchain transactions cannot be deleted or altered.
+### Level 2: Private / Confidential
+*   **Definition**: Highly sensitive data protected by stricter privilege.
+*   **Examples**: Mental Health records, Genetic testing, HIV/STD status.
+*   **Access**: **Strictly Doctor-Patient Confidentiality**. Hidden from Insurers and Researchers.
 
 ---
 
-## 4. Component Interaction Map
+## 6. Technical Deep Dive
 
-Map of React components to their primary responsibilities.
+### 6.1 Frontend State Management
+The React application uses a **Context-free, Prop-drilling minimized** approach with `ethers.js` acting as the global state provider via the Blockchain.
+*   **Poll-free Updates**: Instead of polling the database, the frontend listens for **Events** (`MedicalRecordAdded`, `AccessGranted`) to update the UI in real-time.
 
-| Component | Responsibility |
+### 6.2 IPFS Integration
+*   The system uses **InterPlanetary File System** for "Content Addressed Storage".
+*   We store the **CID** (Content Identifier) on-chain.
+*   *Why?* If we stored the PDF on Ethereum, a single transaction could cost $50,000+ in Gas. Storing the CID (32 bytes) costs pennies.
+
+### 6.3 Smart Contract Security (Threat Model)
+
+| Threat | Mitigation Strategy |
 | :--- | :--- |
-| `App.js` | Routing, Wallet Connection, Contract Instantiation |
-| `Navbar.js` | Global Navigation, Dynamic Login State |
-| `LandingPage.js` | Role Selection, Product Features |
-| `patientpage.js` | **Patient Dashboard**: View Records, Manage Access Requests |
-| `doctorpage.js` | **Doctor Dashboard**: View Patients, Upload Records |
-| `researcherpage.js` | **Researcher Portal**: View specific patient records (Read-Only) |
-| `insurancepage.js` | **Insurance Portal**: View claims-related records (Read-Only) |
-| `adminpage.js` | **Admin Only**: Register new Patients/Doctors |
+| **Unauthorized Access** | `getSharedRecords` enforces a strict check of `msg.sender` against the `accessExpiry` mapping. |
+| **Tampering** | Records are stored on IPFS. If a byte changes, the CID changes. The CID on-chain is immutable. Mismatch = Tampering detected. |
+| **Sybil Attack** | Registration is `onlyAdmin`. Bad actors cannot flood the system with fake Doctor accounts. |
+| **Reentrancy** | All external calls (to Audit, etc.) follow the Checks-Effects-Interactions pattern. |
+| **Wallet Spoofing** | Frontend `useEffect` hooks constantly verify that `window.ethereum.selectedAddress` matches the internal `account` state. |
+
+---
+
+## 7. Operational Guide
+
+### 7.1 Setup & Deployment
+1.  **Environment**: Requires `Node.js v16+`, `Docker` (for IPFS), `MetaMask`.
+2.  **Deployment Order**:
+    1.  Deploy `HealthcareAudit`.
+    2.  Deploy `DoctorManagement`, `ResearcherManagement`, `InsuranceManagement` (pass Audit address).
+    3.  Deploy `PatientManagement`.
+    4.  **Linkage**: Call `setDoctorContractAddress`, etc., on `PatientManagement` to wire the system together.
+
+### 7.2 Routine Admin Tasks
+*   **Approving Users**: The Admin must manually approve new Doctor/Researcher accounts to maintain the "Web of Trust".
+*   **Monitoring**: The Admin can view the Global Log to detect anomalous activity patterns (e.g., one Doctor accessing 1000 records in 1 minute).
+
+---
+
+## 8. Conclusion
+
+MedBlock Version 3.0 represents a mature, production-grade architecture. By rigorously separating concerns, enforcing granular privacy levels, and automating audit trails, it provides a comprehensive solution to the triad of Health Tech challenges: **Security**, **Interoperability**, and **Sovereignty**.
+
+*   **For Patients**: Peace of mind and portability.
+*   **For Doctors**: Instant access to complete histories.
+*   **For Research**: Access to cleaner, verified datasets.

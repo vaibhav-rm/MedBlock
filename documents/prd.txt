@@ -1,0 +1,286 @@
+
+# 📱 Product Requirements Document (PRD)
+
+## MedBlock Mobile App
+
+**Decentralized Medical Record System**
+
+---
+
+## 1. Product Overview
+
+### Product Name
+
+**MedBlock Mobile**
+
+### Description
+
+MedBlock Mobile is a cross-platform mobile application that extends the MedBlock decentralized EHR platform to Android and iOS devices. The app enables patients, doctors, researchers, insurers, and admins to securely access and manage medical records using the **same blockchain and IPFS backend** as the existing web application.
+
+The app leverages **Ethereum (Sepolia Testnet)** smart contracts for access control and **IPFS** for decentralized storage, ensuring privacy, security, and patient data ownership.
+
+---
+
+## 2. Goals & Objectives
+
+### Primary Goals
+
+* Provide **mobile-first access** to decentralized medical records
+* Reuse the **existing smart contracts and IPFS infrastructure**
+* Maintain **feature parity** with the web application
+* Improve **accessibility and usability** for non-technical users
+
+### Success Metrics
+
+* Successful wallet-based authentication on mobile
+* < 2s average screen load time
+* 0 unauthorized data access incidents
+* ≥ 95% feature parity with web app
+
+---
+
+## 3. Target Users
+
+| User Role  | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| Patient    | Individuals managing and sharing their medical records      |
+| Doctor     | Healthcare professionals uploading and viewing patient data |
+| Researcher | Authorized users accessing anonymized datasets              |
+| Insurer    | Claim processing users with time-limited access             |
+| Admin      | Platform administrators managing registrations              |
+
+---
+
+## 4. Supported Platforms
+
+* Android (Primary)
+* iOS (Secondary)
+* Tablet support (responsive layouts)
+
+---
+
+## 5. Tech Stack (Mobile)
+
+### Frontend
+
+* **React Native (Expo)** OR **Next.js + Capacitor**
+* **TypeScript**
+* **Tailwind (NativeWind)** or custom design system
+* **Framer Motion / Reanimated** (animations)
+* **Lucide Icons**
+
+### Blockchain & Storage (Same as Web)
+
+* Solidity Smart Contracts (unchanged)
+* Ethereum Sepolia Testnet
+* IPFS
+* Pinata (optional)
+
+### Blockchain Interaction
+
+* **Ethers.js v6**
+* **WalletConnect v2** (MetaMask Mobile support)
+
+---
+
+## 6. Architecture Overview
+
+### High-Level Flow
+
+```
+Mobile App (React Native / Capacitor)
+        ↓
+Next.js Backend APIs (Existing)
+        ↓
+Ethereum Smart Contracts (Sepolia)
+        ↓
+IPFS (Encrypted Medical Records)
+```
+
+### Key Principle
+
+⚠️ **No smart contracts or IPFS logic will be duplicated.**
+The app strictly acts as a client to the existing backend.
+
+---
+
+## 7. Core Features
+
+---
+
+### 7.1 Authentication & Wallet Connection
+
+**Requirements**
+
+* Wallet-based login using MetaMask Mobile / WalletConnect
+* Role detection based on `msg.sender`
+* Network validation (Sepolia only)
+
+**Acceptance Criteria**
+
+* User cannot proceed if wrong wallet is connected
+* Clear error messages for invalid roles
+
+---
+
+### 7.2 Patient Features
+
+#### View Medical Records
+
+* Fetch record CIDs from blockchain
+* Retrieve files from IPFS
+* Decrypt locally on device
+
+#### Access Management
+
+* Grant access (Doctor / Insurer / Researcher)
+* Set time duration
+* Revoke access instantly
+
+#### Audit Logs
+
+* View immutable audit history
+* Filter by date / action type
+
+---
+
+### 7.3 Doctor Features
+
+* Upload new medical records
+* View shared patient records
+* Request access to new patients
+* View access expiry countdown
+
+---
+
+### 7.4 Researcher Features
+
+* View anonymized records
+* Time-limited read-only access
+* No raw patient identity exposure
+
+---
+
+### 7.5 Insurer Features
+
+* View standard-level records
+* 24-hour automatic expiry
+* Claim verification support
+
+---
+
+### 7.6 Admin Features
+
+* Register users on-chain
+* Assign roles
+* View global audit events
+
+---
+
+## 8. Security Requirements
+
+### Blockchain Security
+
+* Strict `msg.sender` validation
+* Immutable access rules
+* No private keys stored locally
+
+### Mobile Security
+
+* Biometric lock (optional)
+* Secure storage for session data
+* Auto logout on wallet disconnect
+
+### Data Security
+
+* End-to-end encryption
+* IPFS CID integrity verification
+* No medical data stored on device permanently
+
+---
+
+## 9. Non-Functional Requirements
+
+| Category      | Requirement        |
+| ------------- | ------------------ |
+| Performance   | < 2s API response  |
+| Availability  | 99.9% uptime       |
+| Scalability   | Support 10k+ users |
+| Compatibility | Android 9+         |
+| Accessibility | WCAG-compliant UI  |
+
+---
+
+## 10. User Experience (UX)
+
+### Design Principles
+
+* Minimalist
+* Trust-focused
+* Clear role separation
+* Blockchain abstraction for non-technical users
+
+### Key UX Decisions
+
+* Hide transaction hashes unless expanded
+* Human-readable access timers
+* Clear success/failure confirmations
+
+---
+
+## 11. Error Handling
+
+| Scenario            | Behavior                    |
+| ------------------- | --------------------------- |
+| Wrong Network       | Prompt to switch to Sepolia |
+| Unauthorized Access | Block view + alert          |
+| IPFS Fetch Failure  | Retry + fallback            |
+| Wallet Disconnect   | Force logout                |
+
+---
+
+## 12. Deployment Strategy
+
+### Development
+
+* Local IPFS node or Pinata
+* Sepolia Testnet
+
+### Release
+
+* Android: Google Play (Internal testing first)
+* iOS: TestFlight
+
+---
+
+## 13. Future Enhancements (Post-MVP)
+
+* Push notifications for access expiry
+* Offline read-only access (encrypted cache)
+* Emergency access mode
+* Integration with FHIR APIs
+* DID-based identity verification
+
+---
+
+## 14. Constraints & Assumptions
+
+* Users must own a crypto wallet
+* Internet connection required
+* Gas fees paid by user (testnet)
+* No on-chain medical data storage
+
+---
+
+## 15. Open Questions
+
+* Should gas abstraction (relayers) be added?
+* Should biometric auth be mandatory?
+* Should emergency override exist?
+
+---
+
+## 16. Conclusion
+
+MedBlock Mobile extends the decentralized healthcare vision of MedBlock to smartphones without compromising security, privacy, or decentralization. By reusing the existing blockchain and IPFS backend, development risk is minimized while maximizing reach and usability.
+

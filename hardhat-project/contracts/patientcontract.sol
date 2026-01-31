@@ -49,6 +49,7 @@ contract PatientManagement {
     }
 
     mapping(address => Patient) public patients;
+    address[] public allPatients; // Track all registered patients
     mapping(address => MedicalRecord[]) public patientRecords;
     mapping(string => uint256) private recordIndexes; // Maps IPFS hash to array index
     
@@ -75,11 +76,16 @@ contract PatientManagement {
     function registerPatient(address _patientAddress, string memory _username, string memory _role) public onlyAdmin {
         require(!patients[_patientAddress].isRegistered, "Patient already registered");
         patients[_patientAddress] = Patient(_username, _role, true);
+        allPatients.push(_patientAddress);
         emit PatientRegistered(_patientAddress, _username, _role);
         
         if (auditContractAddress != address(0)) {
             try IHealthcareAudit(auditContractAddress).addAuditLog(msg.sender, "PATIENT_REGISTERED", _patientAddress, _username) {} catch {}
         }
+    }
+
+    function getAllPatients() public view returns (address[] memory) {
+        return allPatients;
     }
 
     function getPatient(address _patientAddress) public view returns (string memory username, string memory role) {
@@ -307,11 +313,21 @@ contract PatientManagement {
         bool isPatient = (_patientAddress == msg.sender);
         bool hasConsent = (accessExpiry[_patientAddress][msg.sender] > block.timestamp);
         
-        require(isPatient || hasConsent, "Access denied");
+        // Check if caller is a registered doctor
+        bool isDoctor = false;
+        if (doctorContractAddress != address(0)) {
+            try IDoctorManagement(doctorContractAddress).getDoctor(msg.sender) returns (string memory, string memory, bool isReg) {
+                isDoctor = isReg;
+            } catch {}
+        }
+
+        require(isPatient || hasConsent || isDoctor, "Access denied");
 
         uint8 maxLevel = 0;
         if (isPatient) {
             maxLevel = 255; // All levels
+        } else if (isDoctor) {
+             maxLevel = 2; // Doctor access level
         } else {
             maxLevel = _getMaxAccessLevel(msg.sender);
         }

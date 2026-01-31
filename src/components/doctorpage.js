@@ -168,26 +168,45 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
         const name = doctorInfo[0];
         setDoctor({ name, address: sanitizedId });
 
-        const authorizedPatients = await doctorContract.getAuthorizedPatients(sanitizedId);
+        // Fetch ONLY authorized patients
+        let authorizedPatients = [];
+        try {
+          authorizedPatients = await doctorContract.getAuthorizedPatients(sanitizedId);
+        } catch (e) {
+          console.error("getAuthorizedPatients failed:", e);
+        }
 
         const { patientContract: signedPatientContract } = await getSignedContracts();
 
         const patientsData = await Promise.all(
           authorizedPatients.map(async (patientId) => {
             try {
-              const patient = await patientContract.getPatient(patientId);
-              // Use signed contract for getSharedRecords to ensure msg.sender is correct
-              const patientRecords = await signedPatientContract.getSharedRecords(patientId);
-              // Show ALL shared records, not just my own
-              const doctorRecords = patientRecords;
+              // Try to fetch patient info
+              let patientName = "Unknown Patient";
+              try {
+                const patient = await patientContract.getPatient(patientId);
+                patientName = patient[0] || "Unknown Patient";
+              } catch (patientErr) {
+                console.warn(`Could not fetch patient info for ${patientId}:`, patientErr.message);
+                // Continue anyway - patient might not be registered but can still have records
+              }
+
+              // Fetch shared records using signed contract
+              let doctorRecords = [];
+              try {
+                const patientRecords = await signedPatientContract.getSharedRecords(patientId);
+                doctorRecords = patientRecords;
+              } catch (recordsErr) {
+                console.warn(`Could not fetch records for ${patientId}:`, recordsErr.message);
+              }
 
               return {
                 id: patientId,
-                name: patient[0],
+                name: patientName,
                 records: doctorRecords
               };
             } catch (innerErr) {
-              console.warn(`Failed to fetch data for patient ${patientId}`, innerErr);
+              console.error(`Failed to process patient ${patientId}:`, innerErr);
               return null;
             }
           })

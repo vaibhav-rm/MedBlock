@@ -8,11 +8,11 @@
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -38,17 +38,17 @@
       ]
     },
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/patientcontract.sol": {
-      "lastModificationDate": 1769187522808,
-      "contentHash": "48f4262825527525f43dbf1889a981d5",
+      "lastModificationDate": 1769230366996,
+      "contentHash": "4985124d9116e0b44f0c71b73ca817ad",
       "sourceName": "contracts/patientcontract.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -84,11 +84,11 @@
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -120,11 +120,11 @@
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
@@ -156,11 +156,11 @@
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
-          "evmVersion": "paris",
           "optimizer": {
-            "enabled": false,
+            "enabled": true,
             "runs": 200
           },
+          "evmVersion": "paris",
           "outputSelection": {
             "*": {
               "*": [
