@@ -4,6 +4,8 @@ import ScreenWrapper from '@/components/ScreenWrapper';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { getProvider, getContracts, isValidAddress } from '@/services/web3';
+import { TwilioService } from '@/services/twilio';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function DoctorLogin() {
   const router = useRouter();
@@ -27,16 +29,44 @@ export default function DoctorLogin() {
       const { doctorContract } = await getContracts(provider);
       console.log("Checking doctor status for:", manualAddress);
       
-      const doctor = await doctorContract.doctors(manualAddress);
-      
-      if (doctor && doctor.isRegistered) {
-        router.replace(`/(doctor)/dashboard/${manualAddress}`);
-      } else {
-        Alert.alert("Access Denied", "This address is not registered as a doctor.");
+      // Use getDoctor to ensure we get the phone number
+      // getDoctor returns (username, role, phoneNumber)
+      const doctorDetails = await doctorContract.getDoctor(manualAddress);
+      console.log("Doctor Details:", doctorDetails);
+
+      // Ethers v6 returns a Result object which is array-like
+      const phoneNumber = doctorDetails[2]; // Index 2 is phoneNumber as per ABI
+
+      if (!phoneNumber) {
+        Alert.alert("Error", "No phone number linked to this account.");
+        return;
       }
-    } catch (error) {
+
+      console.log("Found Phone:", phoneNumber);
+      
+      // Send OTP
+      await TwilioService.sendOTP(phoneNumber);
+      Alert.alert("OTP Sent", `An OTP has been sent to your registered phone number ending in ${phoneNumber.slice(-4)}`);
+
+      // Use Store for reliable data passing
+      useAuthStore.getState().setPendingAuth({
+          role: 'doctor', 
+          phone: phoneNumber, 
+          address: manualAddress,
+          redirectTo: `/(doctor)/dashboard/${manualAddress}`
+      });
+
+      // Navigate to OTP Verify
+      const targetUrl = `/(auth)/otp-verify?phone=${encodeURIComponent(phoneNumber)}&role=doctor&address=${encodeURIComponent(manualAddress)}&redirectTo=${encodeURIComponent(`/(doctor)/dashboard/${manualAddress}`)}`;
+      router.push(targetUrl as any);
+
+    } catch (error: any) {
       console.error(error);
-      Alert.alert("Login Failed", "Could not verify doctor status. Network might be invalid.");
+      if (error.message && error.message.includes("Doctor not registered")) {
+        Alert.alert("Access Denied", "This address is not registered as a doctor.");
+      } else {
+        Alert.alert("Login Failed", "Could not verify doctor status. " + (error.reason || error.message));
+      }
     } finally {
       setLoading(false);
     }

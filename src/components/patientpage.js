@@ -177,6 +177,7 @@ export const PatientDashboard = ({ doctorContract, patientContract, insuranceCon
         setPatient({
           username: patientInfo[0],
           role: patientInfo[1],
+          phoneNumber: patientInfo[2],
           address: sanitizedId
         });
 

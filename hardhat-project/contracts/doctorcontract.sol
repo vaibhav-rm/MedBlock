@@ -7,6 +7,7 @@ contract DoctorManagement {
     struct Doctor {
         string username;
         string role;
+        string phoneNumber;
         bool isRegistered;
     }
 
@@ -21,7 +22,7 @@ contract DoctorManagement {
 
     constructor() {
         admin = msg.sender;
-        doctors[msg.sender] = Doctor("admin", "admin", true);
+        doctors[msg.sender] = Doctor("admin", "admin", "", true);
         doctorAddresses.push(msg.sender);
     }
 
@@ -30,9 +31,9 @@ contract DoctorManagement {
         _;
     }
 
-    function registerDoctor(address _doctorAddress, string memory _username, string memory _role) public onlyAdmin {
+    function registerDoctor(address _doctorAddress, string memory _username, string memory _role, string memory _phoneNumber) public {
         require(!doctors[_doctorAddress].isRegistered, "Doctor already registered");
-        doctors[_doctorAddress] = Doctor(_username, _role, true);
+        doctors[_doctorAddress] = Doctor(_username, _role, _phoneNumber, true);
         doctorAddresses.push(_doctorAddress);
         emit DoctorRegistered(_doctorAddress, _username, _role);
     }
@@ -81,10 +82,10 @@ contract DoctorManagement {
         emit PatientAccessRevoked(_doctorAddress, _patientAddress);
     }
 
-    function getDoctor(address _doctorAddress) public view returns (string memory username, string memory role) {
+    function getDoctor(address _doctorAddress) public view returns (string memory username, string memory role, string memory phoneNumber, bool isRegistered) {
         require(doctors[_doctorAddress].isRegistered, "Doctor not registered");
         Doctor memory doctor = doctors[_doctorAddress];
-        return (doctor.username, doctor.role);
+        return (doctor.username, doctor.role, doctor.phoneNumber, doctor.isRegistered);
     }
 
     function getAuthorizedPatients(address _doctorAddress) public view returns (address[] memory) {

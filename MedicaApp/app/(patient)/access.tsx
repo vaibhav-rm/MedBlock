@@ -9,40 +9,95 @@ import { TwilioService } from '@/services/twilio';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getProvider, getContracts } from '@/services/web3';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function Access() {
+  const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const walletAddress = useAuthStore(state => state.walletAddress);
+  
+  // Prefer param ID, but fallback to stored wallet address
+  const activeId = id ? (Array.isArray(id) ? id[0] : id) : walletAddress;
+  
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
   const [otp, setOtp] = useState('');
   const [doctorAddress, setDoctorAddress] = useState('');
   const [duration, setDuration] = useState('');
+  const [userPhone, setUserPhone] = useState('');
 
   const sendConsentOTP = async () => {
+    if (!activeId) {
+       Alert.alert("Error", "No Wallet Address found. Please login again.");
+       return;
+    }
     if (!doctorAddress || !duration) {
       Alert.alert("Missing Info", "Please fill in all fields");
       return;
     }
 
     setLoading(true);
-    // Simulate getting user's phone from context
-    const userPhone = "+1234567890"; 
-    await TwilioService.sendOTP(userPhone);
-    setLoading(false);
-    setStep(2);
-    Alert.alert("Consent Required", "A verification code has been sent to confirm sharing access.");
+    try {
+        const provider = getProvider();
+        const { patientContract } = await getContracts(provider);
+        const patientId = activeId.toLowerCase();
+        
+        const info = await patientContract.getPatient(patientId);
+        const phone = info[2]; // Struct: (name, role, phoneNumber, ...)
+
+        if (!phone) {
+            Alert.alert("Error", "No registered phone number found.");
+            return;
+        }
+
+        setUserPhone(phone);
+        await TwilioService.sendOTP(phone);
+        
+        setLoading(false);
+        setStep(2);
+        Alert.alert("Consent Required", "A verification code has to sent to " + phone.slice(-4));
+    } catch (e: any) {
+        setLoading(false);
+        console.error(e);
+        Alert.alert("Error", "Failed to send OTP. " + e.message);
+    }
   };
 
   const confirmAccess = async () => {
     setLoading(true);
     try {
-      await TwilioService.verifyOTP("+1234567890", otp);
+      if (!userPhone) throw new Error("Phone number lost");
+
+      // 1. Verify OTP
+      await TwilioService.verifyOTP(userPhone, otp); 
+      
+      // 2. Grant Access on Blockchain
+      const provider = getProvider();
+      
+      // IMPORTANT: For local development/demo, we assume the node has the private key 
+      // and we can request a signer for this specific address.
+      // In production, this would require a wallet connection (Metamask/WalletConnect).
+      const patientId = activeId!.toString();
+      const signer = await provider.getSigner(patientId);
+      
+      const { patientContract } = await getContracts(signer);
+      
+      const durationSeconds = Number(duration) * 24 * 60 * 60;
+      
+      console.log(`Granting access to ${doctorAddress} for ${durationSeconds} seconds from ${patientId}`);
+      
+      const tx = await patientContract.grantAccess(doctorAddress, durationSeconds);
+      await tx.wait();
+
       Alert.alert("Success!", "Access granted to doctor successfully!");
       setStep(1);
       setOtp('');
       setDoctorAddress('');
       setDuration('');
-    } catch (e) {
-      Alert.alert("Error", "Invalid Code");
+    } catch (e: any) {
+      console.error(e);
+      Alert.alert("Error", "Failed to grant access. " + (e.message || "Invalid Code"));
     } finally {
       setLoading(false);
     }

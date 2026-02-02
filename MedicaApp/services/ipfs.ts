@@ -1,11 +1,12 @@
 import { Buffer } from 'buffer';
 
-const IPFS_GATEWAY = "https://cloudflare-ipfs.com/ipfs/";
-const LOCAL_IPFS_API = "http://10.0.2.2:5001/api/v0"; // Android Emulator
+const PINATA_API_KEY = process.env.EXPO_PUBLIC_PINATA_API_KEY;
+const PINATA_SECRET_API_KEY = process.env.EXPO_PUBLIC_PINATA_SECRET_API_KEY;
+const IPFS_GATEWAY = "https://gateway.pinata.cloud/ipfs/";
 
 export const uploadFileToIPFS = async (fileUri: string, fileName: string, mimeType: string) => {
     try {
-        console.log("Uploading to IPFS...", fileUri);
+        console.log("Uploading to Pinata IPFS...", fileUri);
 
         const formData = new FormData();
         // @ts-ignore
@@ -15,22 +16,24 @@ export const uploadFileToIPFS = async (fileUri: string, fileName: string, mimeTy
             type: mimeType
         });
 
-        // Use fetch for local node
-        const response = await fetch(`${LOCAL_IPFS_API}/add`, {
+        const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
             method: 'POST',
             body: formData,
             headers: {
-                'Content-Type': 'multipart/form-data',
-            },
+                // @ts-ignore - React Native handles multipart boundary
+                'pinata_api_key': PINATA_API_KEY || '',
+                'pinata_secret_api_key': PINATA_SECRET_API_KEY || '',
+            } as any,
         });
 
         if (!response.ok) {
-            throw new Error(`IPFS Upload failed: ${response.statusText}`);
+            const errorData = await response.json();
+            throw new Error(`Pinata Upload failed: ${errorData.error || response.statusText}`);
         }
 
         const data = await response.json();
-        console.log("Uploaded CID:", data.Hash);
-        return data.Hash;
+        console.log("Uploaded CID:", data.IpfsHash);
+        return data.IpfsHash;
 
     } catch (error) {
         console.error("IPFS Upload Error:", error);

@@ -1,20 +1,16 @@
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
-import React from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Linking, RefreshControl } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import ScreenWrapper from '@/components/ScreenWrapper';
 import AnimatedCard from '@/components/AnimatedCard';
 import HealthIllustration from '@/components/HealthIllustration';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useLocalSearchParams } from 'expo-router';
+import { getProvider, getContracts } from '@/services/web3';
+import { getIpfsUrl } from '@/services/ipfs';
 
-// Dummy Data
-const MOCK_RECORDS = [
-  { id: '1', title: 'Blood Test Report', date: '2 days ago', type: 'Lab', doctor: 'Dr. Sarah Smith', fileType: 'PDF' },
-  { id: '2', title: 'MRI Scan - Knee', date: '1 week ago', type: 'Radiology', doctor: 'Dr. John Doe', fileType: 'DICOM' },
-  { id: '3', title: 'Vaccination Certificate', date: '1 month ago', type: 'Immunization', doctor: 'Dr. Emily Chen', fileType: 'PDF' },
-  { id: '4', title: 'General Checkup', date: '3 months ago', type: 'Consultation', doctor: 'Dr. Sarah Smith', fileType: 'PDF' },
-  { id: '5', title: 'X-Ray Chest', date: '4 months ago', type: 'Radiology', doctor: 'Dr. Mike Wilson', fileType: 'DICOM' },
-];
+
 
 const getIconForType = (type: string) => {
   switch (type) {
@@ -37,12 +33,60 @@ const getGradientForType = (type: string): [string, string] => {
 };
 
 export default function Records() {
-  const handleView = (title: string) => {
-    Alert.alert(`Opening ${title}`, "This would open the encrypted PDF from IPFS.");
+  const { id } = useLocalSearchParams();
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) fetchRecords();
+  }, [id]);
+
+  const fetchRecords = async () => {
+    if (!id) return;
+    try {
+      setLoading(true);
+      const provider = getProvider();
+      const { patientContract } = await getContracts(provider);
+      
+      const patientId = (Array.isArray(id) ? id[0] : id).toLowerCase();
+      const result = await patientContract.getMedicalRecords(patientId);
+      
+      // Map result (array of structs) to our format
+      // Struct: (ipfsHash, fileType, fileName, title, resume, timestamp, doctor, isActive, ...)
+      const formattedRecords = result.map((r: any, index: number) => ({
+        id: index.toString(),
+        ipfsHash: r.ipfsHash || r[0],
+        fileType: r.fileType || r[1],
+        fileName: r.fileName || r[2],
+        title: r.title || r[3],
+        resume: r.resume || r[4],
+        timestamp: r.timestamp || r[5],
+        doctor: r.doctor || r[6],
+        isActive: r.isActive || r[7],
+        // Mapped fields for UI
+        type: (r.fileType || r[1])?.includes('Lab') ? 'Lab' : 'Consultation', // Simplified mapping
+        date: new Date(Number(r.timestamp || r[5]) * 1000).toLocaleDateString(),
+        doctorName: `${(r.doctor || r[6]).slice(0,6)}...` // We could fetch doctor name if needed
+      }));
+
+      // Filter only active records
+      setRecords(formattedRecords.filter((r: any) => r.isActive));
+    } catch (e) {
+      console.error("Error fetching records:", e);
+      Alert.alert("Error", "Could not fetch medical records");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDownload = (title: string) => {
-    Alert.alert(`Downloading ${title}`, "Downloading from IPFS...");
+  const handleView = (record: any) => {
+    const url = getIpfsUrl(record.ipfsHash);
+    Linking.openURL(url);
+  };
+
+  const handleDownload = (record: any) => {
+     const url = getIpfsUrl(record.ipfsHash);
+     Linking.openURL(url);
   };
 
   return (
@@ -53,9 +97,11 @@ export default function Records() {
         <Text className="text-text-light mt-1">Securely stored on IPFS & Blockchain</Text>
       </Animated.View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-        {MOCK_RECORDS.length > 0 ? (
-          MOCK_RECORDS.map((record, index) => {
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchRecords} />}
+      >
+        {records.length > 0 ? (
+          records.map((record, index) => {
             const gradientColors = getGradientForType(record.type);
             const iconName = getIconForType(record.type);
 
@@ -79,26 +125,20 @@ export default function Records() {
                     <View className="flex-row items-center mt-1">
                       <Text className="text-text-light text-xs">{record.date}</Text>
                       <View className="w-1 h-1 bg-text-light rounded-full mx-2" />
-                      <Text className="text-text-light text-xs">{record.doctor}</Text>
+                      <Text className="text-text-light text-xs">{record.doctorName}</Text>
                     </View>
                     <View className="bg-gray-100 px-2 py-0.5 rounded mt-2 self-start">
-                      <Text className="text-text-light text-[10px] font-semibold">{record.fileType}</Text>
+                      <Text className="text-text-light text-[10px] font-semibold">{record.fileName}</Text>
                     </View>
                   </View>
 
                   {/* Action Buttons */}
                   <View className="flex-row gap-2">
                     <TouchableOpacity 
-                      onPress={() => handleView(record.title)}
+                      onPress={() => handleView(record)}
                       className="bg-primary-50 p-3 rounded-xl"
                     >
                       <Ionicons name="eye-outline" size={20} color="#0d9488" />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                      onPress={() => handleDownload(record.title)}
-                      className="bg-gray-100 p-3 rounded-xl"
-                    >
-                      <Ionicons name="download-outline" size={20} color="#64748b" />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -130,7 +170,7 @@ export default function Records() {
                 <Text className="text-text-light text-xs">Stored securely on IPFS</Text>
               </View>
             </View>
-            <Text className="text-success-dark font-bold text-2xl">{MOCK_RECORDS.length}</Text>
+            <Text className="text-success-dark font-bold text-2xl">{records.length}</Text>
           </LinearGradient>
         </AnimatedCard>
       </ScrollView>

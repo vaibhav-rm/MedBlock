@@ -18,7 +18,10 @@ export default function PatientDetail() {
     try {
       setLoading(true);
       const provider = getProvider();
-      const { patientContract } = await getContracts(provider);
+      
+      // We must sign as the doctor to see shared records
+      const docSigner = await provider.getSigner(doctorId as string);
+      const { patientContract } = await getContracts(docSigner);
 
       const pid = (patientId as string).toLowerCase();
       

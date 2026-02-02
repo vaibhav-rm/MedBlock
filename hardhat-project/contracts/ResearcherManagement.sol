@@ -32,7 +32,7 @@ contract ResearcherManagement {
         _;
     }
 
-    function registerResearcher(address _researcherAddress, string memory _username, string memory _role) public onlyAdmin {
+    function registerResearcher(address _researcherAddress, string memory _username, string memory _role) public {
         require(!researchers[_researcherAddress].isRegistered, "Researcher already registered");
         researchers[_researcherAddress] = Researcher(_username, _role, true);
         researcherAddresses.push(_researcherAddress);
@@ -77,10 +77,10 @@ contract ResearcherManagement {
         emit PatientAccessRevoked(_researcherAddress, _patientAddress);
     }
 
-    function getResearcher(address _researcherAddress) public view returns (string memory username, string memory role, bool isRegistered) {
+    function getResearcher(address _researcherAddress) public view returns (string memory username, string memory role, string memory phoneNumber, bool isRegistered) {
         require(researchers[_researcherAddress].isRegistered, "Researcher not registered");
         Researcher memory r = researchers[_researcherAddress];
-        return (r.username, r.role, r.isRegistered);
+        return (r.username, r.role, "", r.isRegistered);
     }
 
     function getAuthorizedPatients(address _researcherAddress) public view returns (address[] memory) {

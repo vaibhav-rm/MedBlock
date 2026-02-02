@@ -7,14 +7,15 @@ import AuditABI from '../constants/abis/auditContractABI.json';
 
 // Addresses (Should match Web App/src/App.js)
 // TODO: Use environment variables or a constants file
-const DOCTOR_ADDRESS = "0x90E18de98C49344F944e80b292D95b63Ff1a4e52";
-const PATIENT_ADDRESS = "0x00b3697BF61C1066D0Bb664F04D899B28B79B8D8";
-const INSURANCE_ADDRESS = "0xdb72DCE4ad67B6f2B57560A41ABaD10a70D92F41";
-const RESEARCHER_ADDRESS = "0x99cC50B32E63827F328ffAD7A8fA8D9201952a07";
-const AUDIT_ADDRESS = "0x119590cd8620020FD2409862B3C80C5E12c54Ae5";
+// Addresses (Localhost)
+const DOCTOR_ADDRESS = "0xc1c904b15285bA936F59ba4936F2C89e9E52ce14";
+const PATIENT_ADDRESS = "0x848a9488C5C420B20B4082cCbf2598D103E5Dc94";
+const INSURANCE_ADDRESS = "0x5663A9109B4a38102D92a4ee3BE1Be8347Af7173";
+const RESEARCHER_ADDRESS = "0x2dB1cDB83F7798279016000a3968E889551D280A";
+const AUDIT_ADDRESS = "0x51408127D0591230f1E97A0E93a08A54c96f38D4";
 
-// RPC URL - for Android Emulator use 10.0.2.2 instead of localhost
-export const RPC_URL = "http://10.0.2.2:8545";
+// RPC URL
+export const RPC_URL = "https://sepolia.infura.io/v3/b5b05391f5514e1f9427f5ec93ef9173";
 
 export const getProvider = () => {
     return new ethers.JsonRpcProvider(RPC_URL);

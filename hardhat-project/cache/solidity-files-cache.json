@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/doctorcontract.sol": {
-      "lastModificationDate": 1768740513251,
-      "contentHash": "714390ef5b99e908ffd4f78705f1ee7c",
+      "lastModificationDate": 1770021193922,
+      "contentHash": "0883be9de6837fce72bf679d03d61b18",
       "sourceName": "contracts/doctorcontract.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -38,8 +38,8 @@
       ]
     },
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/patientcontract.sol": {
-      "lastModificationDate": 1769230366996,
-      "contentHash": "4985124d9116e0b44f0c71b73ca817ad",
+      "lastModificationDate": 1770021252987,
+      "contentHash": "66458d00d93114a99b9e9cf42ff0eb48",
       "sourceName": "contracts/patientcontract.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -78,8 +78,8 @@
       ]
     },
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/InsuranceManagement.sol": {
-      "lastModificationDate": 1769184427007,
-      "contentHash": "5d5bb9e57262663394ce9267378e424f",
+      "lastModificationDate": 1770021216012,
+      "contentHash": "aa885465698b4bf8b956de3462891b63",
       "sourceName": "contracts/InsuranceManagement.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -114,8 +114,8 @@
       ]
     },
     "/home/vaibhav/projects/Medical-Record-With-Blockchain/Web App/hardhat-project/contracts/ResearcherManagement.sol": {
-      "lastModificationDate": 1769185784665,
-      "contentHash": "6445f20632fd4b109ec3d7a90ab08426",
+      "lastModificationDate": 1770021218002,
+      "contentHash": "9e7e41f4437d0d15a285dc644d15935d",
       "sourceName": "contracts/ResearcherManagement.sol",
       "solcConfig": {
         "version": "0.8.24",

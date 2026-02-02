@@ -32,7 +32,7 @@ contract InsuranceManagement {
         _;
     }
 
-    function registerInsurer(address _insurerAddress, string memory _username, string memory _role) public onlyAdmin {
+    function registerInsurer(address _insurerAddress, string memory _username, string memory _role) public {
         require(!insurers[_insurerAddress].isRegistered, "Insurer already registered");
         insurers[_insurerAddress] = InsuranceProf(_username, _role, true);
         insurerAddresses.push(_insurerAddress);
@@ -78,10 +78,10 @@ contract InsuranceManagement {
         emit PatientAccessRevoked(_insurerAddress, _patientAddress);
     }
 
-    function getInsurer(address _insurerAddress) public view returns (string memory username, string memory role, bool isRegistered) {
+    function getInsurer(address _insurerAddress) public view returns (string memory username, string memory role, string memory phoneNumber, bool isRegistered) {
         require(insurers[_insurerAddress].isRegistered, "Insurer not registered");
         InsuranceProf memory i = insurers[_insurerAddress];
-        return (i.username, i.role, i.isRegistered);
+        return (i.username, i.role, "", i.isRegistered);
     }
 
     function getAuthorizedPatients(address _insurerAddress) public view returns (address[] memory) {

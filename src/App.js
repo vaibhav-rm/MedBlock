@@ -15,12 +15,12 @@ import auditContractABI from "./ABI/auditContractABI.json";
 import Navbar from './components/Navbar';
 import LandingPage from './components/LandingPage';
 
-// UPDATED ADDRESSES
-const doctorContractAddress = "0x90E18de98C49344F944e80b292D95b63Ff1a4e52";
-const insuranceContractAddress = "0xdb72DCE4ad67B6f2B57560A41ABaD10a70D92F41";
-const researcherContractAddress = "0x99cC50B32E63827F328ffAD7A8fA8D9201952a07";
-const patientContractAddress = "0x00b3697BF61C1066D0Bb664F04D899B28B79B8D8";
-const auditContractAddress = "0x119590cd8620020FD2409862B3C80C5E12c54Ae5";
+// UPDATED ADDRESSES (SEPOLIA)
+const doctorContractAddress = "0xc1c904b15285bA936F59ba4936F2C89e9E52ce14";
+const insuranceContractAddress = "0x5663A9109B4a38102D92a4ee3BE1Be8347Af7173";
+const researcherContractAddress = "0x2dB1cDB83F7798279016000a3968E889551D280A";
+const patientContractAddress = "0x848a9488C5C420B20B4082cCbf2598D103E5Dc94";
+const auditContractAddress = "0x51408127D0591230f1E97A0E93a08A54c96f38D4";
 
 function App() {
 	const [doctorContract, setDoctorContract] = useState(null);

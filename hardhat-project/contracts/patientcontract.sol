@@ -5,21 +5,21 @@ pragma solidity ^0.8.0;
     interface IDoctorManagement {
         function addPatientAccess(address _doctorAddress, address _patientAddress) external;
         function revokePatientAccess(address _doctorAddress, address _patientAddress) external;
-        function getDoctor(address _doctorAddress) external view returns (string memory, string memory, bool);
+        function getDoctor(address _doctorAddress) external view returns (string memory, string memory, string memory, bool);
     }
 
     // Interface for InsuranceManagement
     interface IInsuranceManagement {
         function addPatientAccess(address _insurerAddress, address _patientAddress) external;
         function revokePatientAccess(address _insurerAddress, address _patientAddress) external;
-        function getInsurer(address _insurerAddress) external view returns (string memory, string memory, bool);
+        function getInsurer(address _insurerAddress) external view returns (string memory, string memory, string memory, bool);
     }
 
     // Interface for ResearcherManagement
     interface IResearcherManagement {
         function addPatientAccess(address _researcherAddress, address _patientAddress) external;
         function revokePatientAccess(address _researcherAddress, address _patientAddress) external;
-        function getResearcher(address _researcherAddress) external view returns (string memory, string memory, bool);
+        function getResearcher(address _researcherAddress) external view returns (string memory, string memory, string memory, bool);
     }
 
     interface IHealthcareAudit {
@@ -45,6 +45,7 @@ contract PatientManagement {
     struct Patient {
         string username;
         string role;
+        string phoneNumber;
         bool isRegistered;
     }
 
@@ -65,7 +66,7 @@ contract PatientManagement {
 
     constructor() {
         admin = msg.sender;
-        patients[msg.sender] = Patient("admin", "admin", true);
+        patients[msg.sender] = Patient("admin", "admin", "", true);
     }
 
     modifier onlyAdmin() {
@@ -73,9 +74,9 @@ contract PatientManagement {
         _;
     }
 
-    function registerPatient(address _patientAddress, string memory _username, string memory _role) public onlyAdmin {
+    function registerPatient(address _patientAddress, string memory _username, string memory _role, string memory _phoneNumber) public {
         require(!patients[_patientAddress].isRegistered, "Patient already registered");
-        patients[_patientAddress] = Patient(_username, _role, true);
+        patients[_patientAddress] = Patient(_username, _role, _phoneNumber, true);
         allPatients.push(_patientAddress);
         emit PatientRegistered(_patientAddress, _username, _role);
         
@@ -88,10 +89,10 @@ contract PatientManagement {
         return allPatients;
     }
 
-    function getPatient(address _patientAddress) public view returns (string memory username, string memory role) {
+    function getPatient(address _patientAddress) public view returns (string memory username, string memory role, string memory phoneNumber) {
         require(patients[_patientAddress].isRegistered, "Patient not registered");
         Patient memory patient = patients[_patientAddress];
-        return (patient.username, patient.role);
+        return (patient.username, patient.role, patient.phoneNumber);
     }
 
     function addMedicalRecord(
@@ -281,21 +282,21 @@ contract PatientManagement {
         
         // Check Doctor (Level 2)
         if (doctorContractAddress != address(0)) {
-            try IDoctorManagement(doctorContractAddress).getDoctor(_viewer) returns (string memory, string memory, bool isReg) {
+            try IDoctorManagement(doctorContractAddress).getDoctor(_viewer) returns (string memory, string memory, string memory, bool isReg) {
                 if (isReg) return 2;
             } catch {}
         }
 
         // Check Insurer (Level 1)
         if (insuranceContractAddress != address(0)) {
-            try IInsuranceManagement(insuranceContractAddress).getInsurer(_viewer) returns (string memory, string memory, bool isReg) {
+            try IInsuranceManagement(insuranceContractAddress).getInsurer(_viewer) returns (string memory, string memory, string memory, bool isReg) {
                 if (isReg) return 1;
             } catch {}
         }
 
         // Check Researcher (Level 0)
         if (researcherContractAddress != address(0)) {
-            try IResearcherManagement(researcherContractAddress).getResearcher(_viewer) returns (string memory, string memory, bool isReg) {
+            try IResearcherManagement(researcherContractAddress).getResearcher(_viewer) returns (string memory, string memory, string memory, bool isReg) {
                 if (isReg) return 0;
             } catch {}
         }
@@ -316,7 +317,7 @@ contract PatientManagement {
         // Check if caller is a registered doctor
         bool isDoctor = false;
         if (doctorContractAddress != address(0)) {
-            try IDoctorManagement(doctorContractAddress).getDoctor(msg.sender) returns (string memory, string memory, bool isReg) {
+            try IDoctorManagement(doctorContractAddress).getDoctor(msg.sender) returns (string memory, string memory, string memory, bool isReg) {
                 isDoctor = isReg;
             } catch {}
         }

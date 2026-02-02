@@ -6,6 +6,7 @@ import { Clock, Shield, AlertCircle, FileText, UserCheck } from 'lucide-react';
 export const DoctorRegister = ({ getSignedContracts }) => {
   const [doctorId, setDoctorId] = useState('');
   const [doctorUsername, setDoctorUsername] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -14,11 +15,13 @@ export const DoctorRegister = ({ getSignedContracts }) => {
     e.preventDefault();
     try {
       const { doctorContract } = await getSignedContracts();
-      const tx = await doctorContract.registerDoctor(doctorId, doctorUsername, 'Doctor');
+      // Updated to include phoneNumber
+      const tx = await doctorContract.registerDoctor(doctorId, doctorUsername, 'Doctor', phoneNumber);
       await tx.wait();
       setSuccess('Doctor registered successfully');
       setDoctorId('');
       setDoctorUsername('');
+      setPhoneNumber('');
       setError('');
     } catch (err) {
       setError(err.message || 'Error registering doctor');
@@ -45,6 +48,11 @@ export const DoctorRegister = ({ getSignedContracts }) => {
             className="w-full p-2 border rounded" required
           />
 
+          <input type="tel" placeholder="Phone Number" value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+            className="w-full p-2 border rounded" required
+          />
+
           <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded">
             Register Doctor
           </button>
@@ -66,6 +74,7 @@ export const DoctorRegister = ({ getSignedContracts }) => {
 export const PatientRegister = ({ getSignedContracts }) => {
   const [patientId, setPatientId] = useState('');
   const [patientUsername, setPatientUsername] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const navigate = useNavigate();
@@ -74,11 +83,13 @@ export const PatientRegister = ({ getSignedContracts }) => {
     e.preventDefault();
     try {
       const { patientContract } = await getSignedContracts();
-      const tx = await patientContract.registerPatient(patientId, patientUsername, 'Patient');
+      // Updated to include phoneNumber
+      const tx = await patientContract.registerPatient(patientId, patientUsername, 'Patient', phoneNumber);
       await tx.wait();
       setSuccess('Patient registered successfully');
       setPatientId('');
       setPatientUsername('');
+      setPhoneNumber('');
       setError('');
     } catch (err) {
       setError(err.message || 'Error registering patient');
@@ -102,6 +113,11 @@ export const PatientRegister = ({ getSignedContracts }) => {
 
           <input type="password" placeholder="Patient Address" value={patientId}
             onChange={(e) => setPatientId(e.target.value)}
+            className="w-full p-2 border rounded" required
+          />
+
+          <input type="tel" placeholder="Phone Number" value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
             className="w-full p-2 border rounded" required
           />
 
@@ -316,8 +332,8 @@ export const AuditDashboard = ({ auditContract }) => {
                       <tr key={i} className="hover:bg-gray-50 transition-colors">
                         <td className="p-4">
                           <span className={`px-2 py-1 rounded text-xs font-bold ${log.actionType.includes('GRANT') || log.actionType.includes('REGISTER') ? 'bg-green-100 text-green-700' :
-                              log.actionType.includes('REVOKE') ? 'bg-red-100 text-red-700' :
-                                'bg-blue-100 text-blue-700'
+                            log.actionType.includes('REVOKE') ? 'bg-red-100 text-red-700' :
+                              'bg-blue-100 text-blue-700'
                             }`}>
                             {log.actionType.replace(/_/g, ' ')}
                           </span>

@@ -166,7 +166,8 @@ export const DoctorDashboard = ({ doctorContract, patientContract, getSignedCont
         const sanitizedId = id.toLowerCase();
         const doctorInfo = await doctorContract.getDoctor(sanitizedId);
         const name = doctorInfo[0];
-        setDoctor({ name, address: sanitizedId });
+        // doctorInfo[2] is phoneNumber
+        setDoctor({ name, address: sanitizedId, phoneNumber: doctorInfo[2] });
 
         // Fetch ONLY authorized patients
         let authorizedPatients = [];

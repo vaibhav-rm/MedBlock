@@ -9,10 +9,20 @@ import { useAuthStore } from '../../stores/authStore';
 
 export default function OtpVerify() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const params = useLocalSearchParams();
+  const login = useAuthStore(state => state.login);
+  const pendingAuth = useAuthStore(state => (state as any).pendingAuth);
+
+  // Fallback to store if params are missing (Router issue fix)
+  const phone = (params.phone as string) || pendingAuth?.phone;
+  const role = (params.role as string) || pendingAuth?.role;
+  const address = (params.address as string) || pendingAuth?.address;
+  const redirectTo = (params.redirectTo as string) || pendingAuth?.redirectTo;
+  
+  console.log("OTP Verify Params:", { phone, role, address, redirectTo });
+  
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const login = useAuthStore(state => state.login);
 
   const handleVerify = async () => {
     if (!code || code.length !== 6) {
@@ -22,13 +32,31 @@ export default function OtpVerify() {
 
     setLoading(true);
     try {
-      await TwilioService.verifyOTP(phone!, code);
+      if (!phone) throw new Error("Phone number missing");
       
-      // Auto-assign role for demo purpose (or ask user)
-      // Login as patient by default for this flow
-      login('patient', phone!);
+      const roleStr = Array.isArray(role) ? role[0] : role;
+      console.log("Verifying OTP for role:", roleStr);
+
+      await TwilioService.verifyOTP(phone, code);
       
-      router.replace('/(patient)/dashboard');
+      // Login with specified role and address
+      login(roleStr as any || 'patient', address || '', phone || '');
+      
+      if (roleStr === 'patient') {
+         console.log("Redirecting to Patient Dashboard");
+         router.replace({
+            pathname: '/(patient)/dashboard',
+            params: { id: address }
+         });
+      } else if (roleStr === 'doctor') {
+         console.log("Redirecting to Doctor Dashboard");
+         const target = `/(doctor)/dashboard/${address}`;
+         router.replace(target as any);
+      } else {
+         console.warn("Unknown role:", roleStr);
+         Alert.alert("Login Error", "Unknown user role. Returning to home.");
+         router.replace('/');
+      }
     } catch (error) {
       console.error('OTP Verification Error:', error);
       Alert.alert('Verification Failed', 'The code you entered is incorrect. Please try again or resend the code.');

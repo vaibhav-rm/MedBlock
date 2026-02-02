@@ -22,8 +22,8 @@ export const TwilioService = {
         console.log(`Sending OTP to ${phone} via Twilio...`);
 
         // Ensure phone has + prefix if missing (Twilio requires E.164)
-        // Simple check, real app should be more robust
-        const formattedPhone = phone.startsWith('+') ? phone : `+${phone.trim()}`;
+        // Default to +91 (India) if no country code provided
+        const formattedPhone = phone.startsWith('+') ? phone : `+91${phone.trim()}`;
 
         try {
             const formData = new URLSearchParams();
@@ -57,7 +57,7 @@ export const TwilioService = {
     verifyOTP: async (phone: string, code: string) => {
         console.log(`Verifying OTP for ${phone}...`);
 
-        const formattedPhone = phone.startsWith('+') ? phone : `+${phone.trim()}`;
+        const formattedPhone = phone.startsWith('+') ? phone : `+91${phone.trim()}`;
 
         try {
             const formData = new URLSearchParams();

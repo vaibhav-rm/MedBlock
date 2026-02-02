@@ -72,7 +72,7 @@ export default function Index() {
                 variant="gradient"
                 size="sm"
                 icon="person"
-                onPress={() => router.push('/(auth)/login-phone')}
+                onPress={() => router.push('/(auth)/plogin')}
               />
 
               <Button 

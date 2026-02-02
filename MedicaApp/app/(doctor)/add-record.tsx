@@ -41,30 +41,36 @@ export default function AddRecord() {
           if (!cid) throw new Error("IPFS Upload Failed");
 
           // 2. Add to Blockchain
+          // 2. Add to Blockchain
           const provider = getProvider();
-          // We need a SIGNER here. 
-          // Since we might not have a full wallet in this demo, we assume the provider can sign or we need a private key.
-          // For now, if we are in dev/emulator and used "Login with Address", we can't sign unless we have the key.
-          // IF we connected via WalletConnect, we get a signer.
-          // The current `getContracts` takes signerOrProvider.
-          // But `Web3Service` currently only returns JsonRpcProvider which is read-only usually.
           
-          // CRITICAL: We need a signer.
-          // If using WalletConnect, we need to pass the provider from useWalletConnectModal.
-          // But this screen is deep in the stack. We can access the global provider if we used Context, or just use `useWalletConnectModal` hook again.
-          // BUT useWalletConnectModal hook gives a provider that is compatible with ethers.BrowserProvider (or similar).
+          // IMPORTANT: For local development, we sign on behalf of the user/doctor without a wallet prompt.
+          // In production, you would trigger a wallet signature.
+          const docSigner = await provider.getSigner(doctorId as string);
+          const { patientContract } = await getContracts(docSigner);
           
-          // Let's try to simulate the signing for now or warn user. 
-          // In real app, we would use: 
-          // const walletProvider = new ethers.BrowserProvider(provider);
-          // const signer = await walletProvider.getSigner();
+          console.log(`Adding record to ${patientId} by doctor ${doctorId}`);
           
-          // For now, I will assume we CANNOT sign without wallet.
-          // I'll show an Alert that "Transaction Simulated" if no wallet, strict check if wallet.
+          // string memory _patientAddress, string memory _ipfsHash, string memory _fileType, string memory _fileName, 
+          // string memory _title, string memory _resume, string memory _previousVersion, uint8 _privacyLevel
           
-          Alert.alert("Development Mode", "In a real app, this would prompt your wallet to sign. Since we are in development, we will only log the transaction parameters.\n\n" + 
-              `Cid: ${cid}\nPatient: ${patientId}`
+          // Note: Current smart contract signature check:
+          // addMedicalRecord(address _patientAddress, string _ipfsHash, ... ) 
+          
+          const tx = await patientContract.addMedicalRecord(
+              patientId,
+              cid,
+              file.mimeType || 'application/pdf',
+              file.name,
+              title,
+              description,
+              "", // previousVersion
+              privacy
           );
+          
+          await tx.wait();
+          
+          Alert.alert("Success", "Medical Record added successfully!");
           
           // If we want to actually execute on local node, we need a private key.
           // I will skip the actual blockchain write if no signer is available to avoid crash.
