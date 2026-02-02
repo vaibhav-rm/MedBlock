@@ -19,9 +19,9 @@ export default function PatientDetail() {
       setLoading(true);
       const provider = getProvider();
       
-      // We must sign as the doctor to see shared records
-      const docSigner = await provider.getSigner(doctorId as string);
-      const { patientContract } = await getContracts(docSigner);
+      // On Sepolia/Infura, we cannot get a signer for an arbitrary address without a private key.
+      // Instead, we use the provider and specify 'from' in the call overrides for view functions.
+      const { patientContract } = await getContracts(provider);
 
       const pid = (patientId as string).toLowerCase();
       
@@ -32,10 +32,10 @@ export default function PatientDetail() {
       } catch (e) { setPatientName("Patient"); }
 
       // Get Shared Records associated with patient
-      // Since doctor has global access or explicit access, we use getSharedRecords(patientId)
-      const data = await patientContract.getSharedRecords(pid);
+      // We explicitly pass { from: doctorId } so the contract sees msg.sender as the doctor
+      const data = await patientContract.getSharedRecords(pid, { from: doctorId });
       
-      // Parse data (assuming similar structure to Web App: [cid, type, date, title, desc...])
+      // Parse data
       const parsed = data.map((r: any) => ({
           cid: r[0],
           fileType: r[1],

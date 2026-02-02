@@ -1,6 +1,7 @@
 import "react-native-get-random-values";
 import { Slot } from 'expo-router';
 import { View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import "../global.css";
 
 // WalletConnect has been removed to prevent initialization errors
@@ -8,8 +9,8 @@ import "../global.css";
 
 export default function RootLayout() {
   return (
-    <View style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <Slot />
-    </View>
+    </GestureHandlerRootView>
   );
 }

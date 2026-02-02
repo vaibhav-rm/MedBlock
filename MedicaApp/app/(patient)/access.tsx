@@ -1,4 +1,4 @@
-import { View, Text, Alert, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, Alert, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, Pressable } from 'react-native';
 import React, { useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import ScreenWrapper from '@/components/ScreenWrapper';
@@ -26,7 +26,7 @@ export default function Access() {
   const [activeTab, setActiveTab] = useState<AccessTab>('doctors');
   const [providers, setProviders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState<string | null>(null); // store provider address being modified
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Verification State
   const [verifyModalVisible, setVerifyModalVisible] = useState(false);
@@ -36,6 +36,7 @@ export default function Access() {
 
   useEffect(() => {
     if (activeId) fetchProviders();
+    console.log("Tab changed to:", activeTab);
   }, [activeId, activeTab]);
 
   const fetchProviders = async () => {
@@ -54,18 +55,21 @@ export default function Access() {
         contract = doctorContract;
         getDetailsMethod = doctorContract.getDoctor;
       } else if (activeTab === 'insurers') {
-        addresses = await insuranceContract.getAllInsurers(); // Assuming this exists
+        addresses = await insuranceContract.getAllInsurers(); 
         contract = insuranceContract;
         getDetailsMethod = insuranceContract.getInsurer; 
       } else {
-        addresses = await researcherContract.getAllResearchers(); // Assuming this exists
+        addresses = await researcherContract.getAllResearchers();
         contract = researcherContract;
         getDetailsMethod = researcherContract.getResearcher;
       }
 
       const patientId = activeId.toLowerCase();
       
-      const items = await Promise.all(addresses.map(async (addr: string) => {
+      // Filter unique addresses just in case
+      const uniqueAddresses = [...new Set(addresses)];
+
+      const items = await Promise.all(uniqueAddresses.map(async (addr: string) => {
           try {
              // Get details (username, role, phone...)
              const details = await getDetailsMethod(addr);
@@ -222,7 +226,6 @@ export default function Access() {
         </ScreenWrapper>
       );
   }
-
   return (
     <ScreenWrapper className="bg-background">
       {/* Header */}
@@ -237,7 +240,13 @@ export default function Access() {
               <TouchableOpacity 
                 key={tab}
                 onPress={() => setActiveTab(tab)}
-                className={`flex-1 py-2 rounded-lg items-center ${activeTab === tab ? 'bg-white shadow-sm' : ''}`}
+                className="flex-1 py-2 rounded-lg items-center"
+                style={{
+                  backgroundColor: activeTab === tab ? '#ffffff' : 'transparent',
+                  shadowOpacity: activeTab === tab ? 0.05 : 0,
+                  shadowRadius: activeTab === tab ? 2 : 0,
+                  elevation: activeTab === tab ? 1 : 0
+                }}
               >
                   <Text className={`font-semibold capitalize ${activeTab === tab ? 'text-primary-700' : 'text-gray-500'}`}>
                       {tab}
