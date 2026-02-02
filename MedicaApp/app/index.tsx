@@ -4,9 +4,28 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ScreenWrapper from '../components/ScreenWrapper';
 import Button from '../components/Button';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useAuthStore } from '@/stores/authStore';
+import { useEffect } from 'react';
 
 export default function Index() {
   const router = useRouter();
+  const { isAuthenticated, role, walletAddress } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated && role && walletAddress) {
+      // Small delay to ensure hydration or smooth transition
+      const timer = setTimeout(() => {
+        if (role === 'doctor') {
+            router.replace(`/(doctor)/dashboard` as any);
+        } else if (role === 'patient') {
+             // For patient, we often need the ID. Assuming walletAddress IS the ID for now or we stored it.
+             // The store has walletAddress.
+             router.replace({ pathname: '/(patient)/dashboard', params: { id: walletAddress } } as any);
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, role, walletAddress]);
 
   return (
     <View className="flex-1">

@@ -1,265 +1,313 @@
-import { View, Text, Alert, ScrollView } from 'react-native';
-import React, { useState } from 'react';
+import { View, Text, Alert, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import ScreenWrapper from '@/components/ScreenWrapper';
 import Input from '@/components/Input';
 import Button from '@/components/Button';
 import AnimatedCard from '@/components/AnimatedCard';
-import HealthIllustration from '@/components/HealthIllustration';
+import Badge from '@/components/Badge';
 import { TwilioService } from '@/services/twilio';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getProvider, getContracts } from '@/services/web3';
 import { useAuthStore } from '../../stores/authStore';
+
+type AccessTab = 'doctors' | 'insurers' | 'researchers';
+
+const DEFAULT_DURATION_DAYS = 7;
 
 export default function Access() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
   const walletAddress = useAuthStore(state => state.walletAddress);
-  
-  // Prefer param ID, but fallback to stored wallet address
   const activeId = id ? (Array.isArray(id) ? id[0] : id) : walletAddress;
-  
-  const [step, setStep] = useState<1 | 2>(1);
-  const [loading, setLoading] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<AccessTab>('doctors');
+  const [providers, setProviders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null); // store provider address being modified
+
+  // Verification State
+  const [verifyModalVisible, setVerifyModalVisible] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<string | null>(null);
   const [otp, setOtp] = useState('');
-  const [doctorAddress, setDoctorAddress] = useState('');
-  const [duration, setDuration] = useState('');
   const [userPhone, setUserPhone] = useState('');
 
-  const sendConsentOTP = async () => {
-    if (!activeId) {
-       Alert.alert("Error", "No Wallet Address found. Please login again.");
-       return;
-    }
-    if (!doctorAddress || !duration) {
-      Alert.alert("Missing Info", "Please fill in all fields");
-      return;
-    }
+  useEffect(() => {
+    if (activeId) fetchProviders();
+  }, [activeId, activeTab]);
 
-    setLoading(true);
+  const fetchProviders = async () => {
+    if (!activeId) return;
     try {
-        const provider = getProvider();
-        const { patientContract } = await getContracts(provider);
-        const patientId = activeId.toLowerCase();
-        
-        const info = await patientContract.getPatient(patientId);
-        const phone = info[2]; // Struct: (name, role, phoneNumber, ...)
-
-        if (!phone) {
-            Alert.alert("Error", "No registered phone number found.");
-            return;
-        }
-
-        setUserPhone(phone);
-        await TwilioService.sendOTP(phone);
-        
-        setLoading(false);
-        setStep(2);
-        Alert.alert("Consent Required", "A verification code has to sent to " + phone.slice(-4));
-    } catch (e: any) {
-        setLoading(false);
-        console.error(e);
-        Alert.alert("Error", "Failed to send OTP. " + e.message);
-    }
-  };
-
-  const confirmAccess = async () => {
-    setLoading(true);
-    try {
-      if (!userPhone) throw new Error("Phone number lost");
-
-      // 1. Verify OTP
-      await TwilioService.verifyOTP(userPhone, otp); 
-      
-      // 2. Grant Access on Blockchain
+      setLoading(true);
       const provider = getProvider();
+      const { doctorContract, insuranceContract, researcherContract, patientContract } = await getContracts(provider);
       
-      // IMPORTANT: For local development/demo, we assume the node has the private key 
-      // and we can request a signer for this specific address.
-      // In production, this would require a wallet connection (Metamask/WalletConnect).
-      const patientId = activeId!.toString();
-      const signer = await provider.getSigner(patientId);
-      
-      const { patientContract } = await getContracts(signer);
-      
-      const durationSeconds = Number(duration) * 24 * 60 * 60;
-      
-      console.log(`Granting access to ${doctorAddress} for ${durationSeconds} seconds from ${patientId}`);
-      
-      const tx = await patientContract.grantAccess(doctorAddress, durationSeconds);
-      await tx.wait();
+      let addresses: string[] = [];
+      let contract: any = null;
+      let getDetailsMethod: any = null;
 
-      Alert.alert("Success!", "Access granted to doctor successfully!");
-      setStep(1);
-      setOtp('');
-      setDoctorAddress('');
-      setDuration('');
-    } catch (e: any) {
+      if (activeTab === 'doctors') {
+        addresses = await doctorContract.getAllDoctors();
+        contract = doctorContract;
+        getDetailsMethod = doctorContract.getDoctor;
+      } else if (activeTab === 'insurers') {
+        addresses = await insuranceContract.getAllInsurers(); // Assuming this exists
+        contract = insuranceContract;
+        getDetailsMethod = insuranceContract.getInsurer; 
+      } else {
+        addresses = await researcherContract.getAllResearchers(); // Assuming this exists
+        contract = researcherContract;
+        getDetailsMethod = researcherContract.getResearcher;
+      }
+
+      const patientId = activeId.toLowerCase();
+      
+      const items = await Promise.all(addresses.map(async (addr: string) => {
+          try {
+             // Get details (username, role, phone...)
+             const details = await getDetailsMethod(addr);
+             
+             // Check access expiry
+             const expiry = await patientContract.accessExpiry(patientId, addr);
+             const isAccessActive = Number(expiry) > Math.floor(Date.now() / 1000);
+             
+             return {
+                 address: addr,
+                 name: details[0] || 'Unknown',
+                 role: details[1],
+                 accessGranted: isAccessActive,
+                 expiry: Number(expiry)
+             };
+          } catch (e) {
+              console.warn(`Failed to fetch details for ${addr}`, e);
+              return null;
+          }
+      }));
+
+      setProviders(items.filter(i => i !== null));
+
+    } catch (e) {
       console.error(e);
-      Alert.alert("Error", "Failed to grant access. " + (e.message || "Invalid Code"));
+      Alert.alert("Error", "Failed to fetch providers.");
     } finally {
       setLoading(false);
     }
   };
 
+  const initiateGrantAccess = async (providerAddress: string) => {
+      setPendingProvider(providerAddress);
+      setActionLoading(providerAddress);
+      try {
+        const provider = getProvider();
+        const { patientContract } = await getContracts(provider);
+        const patientId = activeId!.toLowerCase();
+        
+        const info = await patientContract.getPatient(patientId);
+        const phone = info[2];
+
+        if (!phone) {
+             Alert.alert("Error", "No registered phone number found on your account.");
+             setActionLoading(null);
+             return;
+        }
+
+        setUserPhone(phone);
+        await TwilioService.sendOTP(phone);
+        
+        setVerifyModalVisible(true);
+        setActionLoading(null);
+      } catch (e: any) {
+        console.error(e);
+        Alert.alert("Error", "Failed to initiate access grant. " + e.message);
+        setActionLoading(null);
+      }
+  };
+
+  const confirmGrantAccess = async () => {
+      if (!pendingProvider || !userPhone) return;
+      
+      setActionLoading(pendingProvider); // Show loading on the modal button effectively (or global)
+      try {
+        // 1. Verify OTP
+        await TwilioService.verifyOTP(userPhone, otp);
+
+        // 2. Grant Access
+        const provider = getProvider();
+        const patientId = activeId!.toString();
+        const signer = await provider.getSigner(patientId); // Mock signer for local
+        const { patientContract } = await getContracts(signer);
+
+        const durationSeconds = DEFAULT_DURATION_DAYS * 24 * 60 * 60;
+        const tx = await patientContract.grantAccess(pendingProvider, durationSeconds);
+        await tx.wait();
+
+        Alert.alert("Success", "Access granted successfully!");
+        setVerifyModalVisible(false);
+        setOtp('');
+        setPendingProvider(null);
+        fetchProviders(); // Refresh list
+      } catch (e: any) {
+        console.error(e);
+        Alert.alert("Failed", "Could not grant access. " + e.message);
+      } finally {
+        setActionLoading(null);
+      }
+  };
+
+  const revokeAccess = async (providerAddress: string) => {
+      setActionLoading(providerAddress);
+      try {
+        const provider = getProvider();
+        const patientId = activeId!.toString();
+        const signer = await provider.getSigner(patientId);
+        const { patientContract } = await getContracts(signer);
+
+        const tx = await patientContract.revokeAccess(providerAddress);
+        await tx.wait();
+
+        Alert.alert("Revoked", "Access has been revoked.");
+        fetchProviders();
+      } catch (e: any) {
+        console.error(e);
+        Alert.alert("Error", "Failed to revoke access.");
+      } finally {
+        setActionLoading(null);
+      }
+  };
+
+  if (verifyModalVisible) {
+      return (
+        <ScreenWrapper className="bg-background justify-center px-6">
+            <AnimatedCard className="p-6">
+                <View className="items-center mb-6">
+                    <View className="w-16 h-16 bg-primary-50 rounded-full items-center justify-center mb-4">
+                        <Ionicons name="lock-closed" size={28} color="#0d9488" />
+                    </View>
+                    <Text className="text-xl font-bold text-text-dark">Verify to Grant Access</Text>
+                    <Text className="text-center text-text-light mt-2">
+                        Enter code sent to {userPhone.slice(0, 4)}...{userPhone.slice(-4)}
+                    </Text>
+                </View>
+
+                <Input 
+                    placeholder="000000" 
+                    keyboardType="number-pad" 
+                    value={otp} 
+                    onChangeText={setOtp}
+                    className="mb-6 text-center text-2xl tracking-widest font-bold"
+                    maxLength={6}
+                />
+
+                <Button 
+                    title="Confirm Grant" 
+                    variant="gradient"
+                    onPress={confirmGrantAccess}
+                    loading={actionLoading === pendingProvider}
+                    disabled={otp.length !== 6}
+                />
+                <Button 
+                    title="Cancel" 
+                    variant="ghost" 
+                    onPress={() => {
+                        setVerifyModalVisible(false);
+                        setPendingProvider(null);
+                        setOtp('');
+                    }}
+                    className="mt-2"
+                />
+            </AnimatedCard>
+        </ScreenWrapper>
+      );
+  }
+
   return (
     <ScreenWrapper className="bg-background">
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <Animated.View entering={FadeIn.delay(100)} className="mb-6">
-          <Text className="text-3xl font-display font-bold text-text-dark">Grant Access</Text>
-          <Text className="text-text-light mt-1">Share your records with healthcare providers</Text>
-        </Animated.View>
+      {/* Header */}
+      <View className="mb-6">
+        <Text className="text-3xl font-display font-bold text-text-dark">Manage Access</Text>
+        <Text className="text-text-light mt-1">Control who can view your records</Text>
+      </View>
 
-        {/* Hero Illustration */}
-        <AnimatedCard delay={150} className="mb-6 p-6 items-center border-0">
-          <HealthIllustration type="grant-access" size="md" />
-        </AnimatedCard>
+      {/* Tabs */}
+      <View className="flex-row mb-6 bg-gray-100 p-1 rounded-xl">
+          {(['doctors', 'insurers', 'researchers'] as AccessTab[]).map(tab => (
+              <TouchableOpacity 
+                key={tab}
+                onPress={() => setActiveTab(tab)}
+                className={`flex-1 py-2 rounded-lg items-center ${activeTab === tab ? 'bg-white shadow-sm' : ''}`}
+              >
+                  <Text className={`font-semibold capitalize ${activeTab === tab ? 'text-primary-700' : 'text-gray-500'}`}>
+                      {tab}
+                  </Text>
+              </TouchableOpacity>
+          ))}
+      </View>
 
-        <AnimatedCard delay={200} className="p-6 border-0 shadow-card">
-          {step === 1 ? (
-            <Animated.View entering={FadeInDown}>
-              {/* Step 1: Enter Details */}
-              <View className="flex-row items-center mb-6 pb-4 border-b border-gray-100">
-                <LinearGradient
-                  colors={['#14b8a6', '#0d9488']}
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                >
-                  <Text className="text-white font-bold">1</Text>
-                </LinearGradient>
-                <View>
-                  <Text className="font-bold text-text-dark">Access Details</Text>
-                  <Text className="text-text-light text-xs">Enter doctor and duration</Text>
-                </View>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchProviders} />}
+      >
+          {loading ? (
+             <ActivityIndicator size="large" color="#0d9488" className="mt-10" />
+          ) : providers.length === 0 ? (
+              <View className="items-center mt-10">
+                  <Ionicons name="people-outline" size={48} color="#cbd5e1" />
+                  <Text className="text-gray-400 mt-4">No {activeTab} found</Text>
               </View>
-
-              <View className="mb-4">
-                <Text className="text-text-dark font-semibold mb-2 text-sm">Doctor Address / ID</Text>
-                <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
-                  <Ionicons name="person" size={20} color="#64748b" />
-                  <Input 
-                    placeholder="0x123... or Dr. Name" 
-                    className="flex-1 ml-2 bg-transparent border-0 p-0"
-                    value={doctorAddress}
-                    onChangeText={setDoctorAddress}
-                  />
-                </View>
-              </View>
-
-              <View className="mb-6">
-                <Text className="text-text-dark font-semibold mb-2 text-sm">Duration (Days)</Text>
-                <View className="flex-row gap-2">
-                  {['7', '14', '30'].map((days) => (
-                    <Button
-                      key={days}
-                      title={`${days}d`}
-                      variant={duration === days ? 'primary' : 'outline'}
-                      size="sm"
-                      className="flex-1"
-                      onPress={() => setDuration(days)}
-                    />
-                  ))}
-                </View>
-                <View className="flex-row items-center bg-gray-50 rounded-xl px-4 py-3 border border-gray-200 mt-2">
-                  <Ionicons name="calendar" size={20} color="#64748b" />
-                  <Input 
-                    placeholder="Or enter custom days" 
-                    keyboardType="numeric"
-                    className="flex-1 ml-2 bg-transparent border-0 p-0"
-                    value={duration}
-                    onChangeText={setDuration}
-                  />
-                </View>
-              </View>
-              
-              <View className="bg-warning-light/20 p-4 rounded-xl mb-6 flex-row">
-                <Ionicons name="warning" size={20} color="#f59e0b" style={{ marginRight: 8 }} />
-                <Text className="text-warning-dark text-xs flex-1">
-                  You will need to verify via SMS to authorize this action.
-                </Text>
-              </View>
-
-              <Button 
-                title="Request Access Token" 
-                variant="gradient"
-                icon="send"
-                onPress={sendConsentOTP} 
-                loading={loading}
-                className="shadow-elevated"
-              />
-            </Animated.View>
           ) : (
-            <Animated.View entering={FadeInDown}>
-              {/* Step 2: Verify OTP */}
-              <View className="flex-row items-center mb-6 pb-4 border-b border-gray-100">
-                <LinearGradient
-                  colors={['#14b8a6', '#0d9488']}
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                >
-                  <Text className="text-white font-bold">2</Text>
-                </LinearGradient>
-                <View>
-                  <Text className="font-bold text-text-dark">Verify Consent</Text>
-                  <Text className="text-text-light text-xs">Enter the code sent to your phone</Text>
-                </View>
-              </View>
+              providers.map((item, index) => (
+                  <AnimatedCard key={item.address} delay={index * 100} className="mb-4 p-4 border border-gray-100 flex-row items-center justify-between">
+                      <View className="flex-1 mr-4">
+                          <View className="flex-row items-center mb-1">
+                              <Text className="font-bold text-lg text-text-dark">{item.name}</Text>
+                              {item.accessGranted && (
+                                  <View className="ml-2 bg-green-100 px-2 py-0.5 rounded text-xs flex-row items-center">
+                                      <Ionicons name="checkmark-circle" size={12} color="#16a34a" />
+                                      <Text className="text-green-700 text-[10px] font-bold ml-1">ACCESS GRANTED</Text>
+                                  </View>
+                              )}
+                          </View>
+                          <Text className="text-xs text-gray-400 mb-1">{item.address}</Text>
+                          {item.accessGranted && (
+                              <Text className="text-xs text-primary-600">
+                                  Expires: {new Date(item.expiry * 1000).toLocaleDateString()}
+                              </Text>
+                          )}
+                      </View>
 
-              <View className="items-center mb-6">
-                <View className="w-20 h-20 bg-primary-50 rounded-full items-center justify-center mb-4">
-                  <Ionicons name="lock-closed" size={32} color="#0d9488" />
-                </View>
-                <Text className="text-text-dark font-semibold text-lg mb-2">Verification Code</Text>
-                <Text className="text-text-light text-sm text-center">
-                  We've sent a 6-digit code to your phone
-                </Text>
-              </View>
-              
-              <Input 
-                placeholder="000000" 
-                keyboardType="number-pad" 
-                value={otp}
-                onChangeText={setOtp}
-                className="mb-6 text-center text-3xl tracking-[8px] font-bold"
-                maxLength={6}
-              />
-
-              <Button 
-                title="Confirm Access" 
-                variant="gradient"
-                icon="checkmark-circle"
-                onPress={confirmAccess} 
-                loading={loading}
-                className="mb-3 shadow-elevated"
-              />
-              <Button 
-                title="Cancel" 
-                variant="outline" 
-                onPress={() => setStep(1)}
-              />
-            </Animated.View>
+                      <View>
+                          {item.accessGranted ? (
+                              <TouchableOpacity 
+                                onPress={() => revokeAccess(item.address)}
+                                disabled={!!actionLoading}
+                                className="bg-red-50 border border-red-100 px-4 py-2 rounded-lg"
+                              >
+                                  {actionLoading === item.address ? (
+                                      <ActivityIndicator size="small" color="#ef4444" />
+                                  ) : (
+                                      <Text className="text-red-600 font-semibold text-xs">Revoke</Text>
+                                  )}
+                              </TouchableOpacity>
+                          ) : (
+                              <TouchableOpacity 
+                                onPress={() => initiateGrantAccess(item.address)}
+                                disabled={!!actionLoading}
+                                className="bg-primary-600 px-4 py-2 rounded-lg shadow-sm"
+                              >
+                                  {actionLoading === item.address ? (
+                                      <ActivityIndicator size="small" color="white" />
+                                  ) : (
+                                      <Text className="text-white font-semibold text-xs">Grant Access</Text>
+                                  )}
+                              </TouchableOpacity>
+                          )}
+                      </View>
+                  </AnimatedCard>
+              ))
           )}
-        </AnimatedCard>
-
-        {/* Info Card */}
-        <AnimatedCard delay={250} className="mt-4 p-0 overflow-hidden border-0">
-          <LinearGradient
-            colors={['#f0fdfa', '#ccfbf1']}
-            className="p-5"
-          >
-            <View className="flex-row items-start">
-              <View className="bg-primary-600 w-10 h-10 rounded-full items-center justify-center mr-3">
-                <Ionicons name="information" size={20} color="#ffffff" />
-              </View>
-              <View className="flex-1">
-                <Text className="text-text-dark font-bold mb-1">How it works</Text>
-                <Text className="text-text-light text-xs leading-5">
-                  Access grants are temporary and automatically expire. You can revoke access anytime from your dashboard.
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-        </AnimatedCard>
       </ScrollView>
     </ScreenWrapper>
   );

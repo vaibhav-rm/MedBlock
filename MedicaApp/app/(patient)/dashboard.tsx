@@ -11,25 +11,32 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getProvider, getContracts } from '@/services/web3';
 
+import { useAuthStore } from '@/stores/authStore';
+
 export default function PatientDashboard() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
+  const walletAddress = useAuthStore(state => state.walletAddress);
+  const activeId = id ? (Array.isArray(id) ? id[0] : id) : walletAddress;
+
   const [patientName, setPatientName] = useState('Patient');
   const [recordCount, setRecordCount] = useState(0);
   const [activeGrants, setActiveGrants] = useState(0);
   const [loading, setLoading] = useState(true);
+  
+  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
-    if (id) fetchData();
-  }, [id]);
+    if (activeId) fetchData();
+  }, [activeId]);
 
   const fetchData = async () => {
-    if (!id) return;
+    if (!activeId) return;
     try {
       const provider = getProvider();
       const { patientContract } = await getContracts(provider);
       
-      const patientId = (Array.isArray(id) ? id[0] : id).toLowerCase();
+      const patientId = activeId.toLowerCase();
       
       // Get Patient Info
       try {
@@ -53,7 +60,12 @@ export default function PatientDashboard() {
     }
   };
 
-  if (!id) {
+  const handleLogout = () => {
+    logout();
+    router.replace('/');
+  };
+
+  if (!activeId) {
      return (
          <ScreenWrapper className="bg-background justify-center items-center">
              <Text className="text-gray-500">No Patient ID provided.</Text>
@@ -73,12 +85,20 @@ export default function PatientDashboard() {
             <Text className="text-text-light text-xs font-medium uppercase tracking-wider">Dashboard</Text>
             <Text className="text-3xl font-display font-bold text-text-dark mt-1">Hello, {patientName}</Text>
           </View>
-          <TouchableOpacity className="w-12 h-12 bg-white shadow-soft rounded-full items-center justify-center border border-gray-100">
-            <Image 
-              source={{ uri: `https://ui-avatars.com/api/?name=${patientName}&background=14b8a6&color=fff` }} 
-              className="w-full h-full rounded-full"
-            />
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+             <TouchableOpacity 
+              onPress={handleLogout}
+              className="w-12 h-12 bg-red-50 shadow-soft rounded-full items-center justify-center border border-red-100"
+            >
+              <Ionicons name="power" size={24} color="#ef4444" />
+            </TouchableOpacity>
+            <TouchableOpacity className="w-12 h-12 bg-white shadow-soft rounded-full items-center justify-center border border-gray-100">
+              <Image 
+                source={{ uri: `https://ui-avatars.com/api/?name=${patientName}&background=14b8a6&color=fff` }} 
+                className="w-full h-full rounded-full"
+              />
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Health Hero Illustration */}
@@ -105,7 +125,7 @@ export default function PatientDashboard() {
                 <Text className="text-success-light font-medium text-xs uppercase tracking-widest">System Online</Text>
               </View>
               <Text className="text-white font-display font-bold text-2xl">Medical Vault</Text>
-              <Text className="text-slate-400 text-sm mt-1">{id ? `${(id as string).slice(0,6)}...${(id as string).slice(-4)}` : 'Loading...'}</Text>
+              <Text className="text-slate-400 text-sm mt-1">{activeId ? `${(activeId as string).slice(0,6)}...${(activeId as string).slice(-4)}` : 'Loading...'}</Text>
             </View>
             <View className="bg-white/10 p-3 rounded-2xl items-center border border-white/5">
               <Ionicons name="shield-checkmark" size={28} color="#10b981" />
@@ -138,7 +158,7 @@ export default function PatientDashboard() {
             className="w-[48%] mb-4"
             onPress={() => router.push({ 
               pathname: '/(patient)/records', 
-              params: { id: Array.isArray(id) ? id[0] : id } 
+              params: { id: activeId } 
             })}
           >
             <AnimatedCard delay={450} className="items-center py-6 bg-white border border-gray-100 rounded-2xl shadow-soft">
@@ -157,7 +177,7 @@ export default function PatientDashboard() {
             className="w-[48%] mb-4"
             onPress={() => router.push({ 
               pathname: '/(patient)/access', 
-              params: { id: Array.isArray(id) ? id[0] : id } 
+              params: { id: activeId } 
             })}
           >
             <AnimatedCard delay={500} className="items-center py-6 bg-white border border-gray-100 rounded-2xl shadow-soft">

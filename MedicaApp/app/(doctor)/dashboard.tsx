@@ -7,7 +7,18 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useAuthStore } from '@/stores/authStore';
+import { useRouter } from 'expo-router';
+
 export default function DoctorDashboard() {
+  const router = useRouter();
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/');
+  };
+
   return (
     <ScreenWrapper className="bg-background">
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -20,12 +31,20 @@ export default function DoctorDashboard() {
             <Text className="text-text-light text-sm font-medium">Have a great day,</Text>
             <Text className="text-3xl font-display font-bold text-primary-700 mt-1">Dr. Smith</Text>
           </View>
-          <TouchableOpacity className="bg-white p-3 rounded-full shadow-soft border border-gray-100">
-            <View className="relative">
-              <Ionicons name="notifications-outline" size={24} color="#0d9488" />
-              <View className="absolute -top-1 -right-1 w-3 h-3 bg-secondary-500 rounded-full border-2 border-white" />
-            </View>
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+             <TouchableOpacity 
+              onPress={handleLogout}
+              className="bg-red-50 p-3 rounded-full shadow-soft border border-red-100"
+            >
+              <Ionicons name="power" size={24} color="#ef4444" />
+            </TouchableOpacity>
+            <TouchableOpacity className="bg-white p-3 rounded-full shadow-soft border border-gray-100">
+              <View className="relative">
+                <Ionicons name="notifications-outline" size={24} color="#0d9488" />
+                <View className="absolute -top-1 -right-1 w-3 h-3 bg-secondary-500 rounded-full border-2 border-white" />
+              </View>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
 
         {/* Search Bar */}

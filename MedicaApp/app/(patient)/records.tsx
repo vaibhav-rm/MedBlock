@@ -32,23 +32,32 @@ const getGradientForType = (type: string): [string, string] => {
   }
 };
 
+import { useAuthStore } from '@/stores/authStore';
+
 export default function Records() {
   const { id } = useLocalSearchParams();
+  const walletAddress = useAuthStore(state => state.walletAddress);
+  const activeId = id ? (Array.isArray(id) ? id[0] : id) : walletAddress;
+
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) fetchRecords();
-  }, [id]);
+    if (activeId) {
+        fetchRecords();
+    } else {
+        setLoading(false);
+    }
+  }, [activeId]);
 
   const fetchRecords = async () => {
-    if (!id) return;
+    if (!activeId) return;
     try {
       setLoading(true);
       const provider = getProvider();
       const { patientContract } = await getContracts(provider);
       
-      const patientId = (Array.isArray(id) ? id[0] : id).toLowerCase();
+      const patientId = activeId.toLowerCase();
       const result = await patientContract.getMedicalRecords(patientId);
       
       // Map result (array of structs) to our format
